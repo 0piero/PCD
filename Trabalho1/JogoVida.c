@@ -15,8 +15,11 @@ int GRID_SIZE;
 int NUM_WORKERS;
 
 typedef struct {
-    int* partition;
+    int* shift;
+    int** grid_ptr;
+    int** newgrid_ptr;
 } thread_args;
+
 /*
 Admita que a posição (0,0) identifica a célula no canto superior esquerdo
 do tabuleiro e que a posição (N-1,N-1) identifica a célula no canto inferior direito. 
@@ -44,40 +47,47 @@ int getAlive(int** grid, int shift)/* -> quantidade viva total
 										shift: posição que cada worker começa a busca sequencial
 										(e.g. {shift, shift+NUM_WORKERS, ... , shift%NUM_WORKERS + NUM_WORKERS*(floor(GRID_SIZE^2/NUM_WORKERS) - 1)})										
 								   */{
-	int q = 0, int** ptr = grid, ptr2 = NULL;
+	int q = 0, **ptr = grid, *ptr2 = NULL;
 
 	for(;ptr<grid+GRID_SIZE;ptr++){
         for(ptr2=*ptr+shift;ptr2<*ptr+GRID_SIZE;ptr2+=NUM_WORKERS){
         	if(*ptr2==1){q++;}
-            printf("%d\n", *ptr2);
+			printf("%d\n", *ptr2);
         }
         shift = ptr2-(*ptr+GRID_SIZE);
         if(shift<0){
-                shift = 0;
+			shift = 0;
         }
     }
     return q;
 }
 
 void* runGeneration(void* arg){
+	thread_args* arg = (thread_args*) arg;
+	int j = arg->shift/GRID_SIZE, k = arg->shift%GRID_SIZE;
+	for(int i=0;i<NUM_GEN;i++){
+		for(;j<GRID_SIZE;k=k%GRID_SIZE){
+			for(;k<GRID_SIZE;k+=NUM_WORKERS, j+=k/GRID_SIZE){
+				printf("%d %d\n", j, k);
+				int nn = getNeighbors(arg->grid_ptr, j, k);
+				if((arg->grid_ptr)[j][k]==1){
+					if(nn==2 || nn==3){}
+					else{(arg->newgrid_ptr)[j][k]=0;}
+				}
+				else{
+					if(nn==3){(arg->newgrid_ptr)[j][k]=1;}
+					else{}
+				}
 
+			}
+		}
+	}
 }
 
-void init_args(thread_args* arg, int* pos){ 
-	/*
-	 -  -  -  -  -  -  -  -
-	|			   |pos(w1)|
-	|		  <--  |       |
-	|			   |	   |
-	|				-  -  -|
-	|-  -  -    <--  . . . |
-	|pos(wN)|              |
-	|		|			   |
-	|		|			   |
-	 -  -  -  -  -  -  -  -
-	*/
-
-
+void init_args(thread_args* arg, int shift, int** grid_ptr, int** newgrid_ptr){ 
+	arg->shift = shift;
+	arg->grid_ptr = grid_ptr;
+	arg->newgrid_ptr = newgrid_ptr;
 }
 
 int main(int argc, char** argv){
@@ -99,13 +109,13 @@ int main(int argc, char** argv){
 	grid[lin+2][col+1] = 1;
 	grid[lin+2][col+2] = 1;
 
-	
+	int shift = 0;
 	for(int j=0;j<NUM_WORKERS;j++){
 		thread_args* arg;
 		arg = (thread_args*)malloc(sizeof(thread_args));
-		init_args(arg, pos);
+		init_args(arg, shift, grid, newgrid);
 		pthread_create(&(tid[j]), NULL, runGeneration, (void*) arg);
-		
+		shift++;
     }
 
     for(int j=0;j<NUM_WORKERS;j++){
