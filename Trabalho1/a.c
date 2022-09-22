@@ -30,19 +30,25 @@ do tabuleiro e que a posição (N-1,N-1) identifica a célula no canto inferior 
 3) Qualquer outro caso, células vivas devem morrer e células já mortas devem continuar mortas.
 */
 
-int getNeighbors(int** grid, int i, int j)/* -> quantidade de vizinhos vivos para a entrada a_{ij}*/{ 
-	int i_low = (i+1)%GRID_SIZE, i_high = (i-1)%GRID_SIZE, j_low = (j-1)%GRID_SIZE, j_high = (j+1)%GRID_SIZE;
-	int pos[8][2] = {{i_low, j_high}, {i_low, j_low}, {i_low, j}, 
-	{i_high, j_high}, {i_high, j_low}, {i_high, j},
-	{i, j_high}, {i, j_low}};
-	int count=0;
-	for(int c=0;c<8;c++){
-		if(grid[pos[c][0]][pos[c][1]] == 1){
-			count++;
-		}
-	}
-	return count;
+
+// mod -1 nao funciona, falei, C eh C
+
+int getNeighbors(int** grid, int i, int j){ // -> quantidade de vizinhos vivos para a entrada a_{ij}
+	int i_low = (i+1)%GRID_SIZE, i_high = (i-1+GRID_SIZE)%GRID_SIZE, j_low = (j-1+GRID_SIZE)%GRID_SIZE, j_high = (j+1)%GRID_SIZE;
+	//int pos[8][2] = {{i_low, j_high}, {i_low, j_low}, {i_low, j}, 
+	//{i_high, j_high}, {i_high, j_low}, {i_high, j},
+	//{i, j_high}, {i, j_low}};
+	//int count=0;
+	//for(int c=0;c<8;c++){
+	//	if(grid[pos[c][0]][pos[c][1]] == 1){
+	//		count++;
+	//	}
+	//}
+	return grid[i_low][j_high] + grid[i_low][j_low] + grid[i_low][j] +
+		grid[i_high][j_high] + grid[i_high][j_low] + grid[i_high][j] + 
+		grid[i][j_high] + grid[i][j_low];
 }
+
 
 int getAlive(int** grid, int shift)/* -> quantidade viva total 
 										shift: posição que cada worker começa a busca sequencial
@@ -101,9 +107,18 @@ void update_grid(int** grid_ptr, int** newgrid_ptr){
 }
 
 void init_args(thread_args* arg, int shift, int** grid_ptr, int** newgrid_ptr){ 
-	*(arg->shift) = shift;
+	arg->shift = &shift;
 	arg->grid_ptr = grid_ptr;
 	arg->newgrid_ptr = newgrid_ptr;
+}
+
+void print_grid(int** grid_ptr){
+	for(int i=0;i<GRID_SIZE;i++){
+		for(int j=0;j<GRID_SIZE;j++){
+			printf("%d", grid_ptr[i][j]);
+		}
+		printf("\n");
+	}
 }
 
 int main(int argc, char** argv){
@@ -125,7 +140,7 @@ int main(int argc, char** argv){
 	grid[lin+2][col+1] = 1;
 	grid[lin+2][col+2] = 1;
 	
-	
+	print_grid(grid);
 	for(j=0;j<NUM_WORKERS;j++){
 		thread_args* arg;
 		arg = (thread_args*)malloc(sizeof(thread_args));
@@ -137,7 +152,7 @@ int main(int argc, char** argv){
     	pthread_join(tid[j], NULL);
     }
     printf("vivos: %d\n", getAlive(grid, shift));
-	
+	print_grid(grid);
 
 	//R-pentomino
 	/*
@@ -152,3 +167,5 @@ int main(int argc, char** argv){
 	return 0;
     
 }
+
+// TODO: o grid
