@@ -10,6 +10,8 @@ Nomes:
 #include <unistd.h>
 #include <pthread.h>
 
+pthread_barrier_t barrier;
+
 int NUM_GEN = 5;
 int GRID_SIZE = 5;
 int NUM_WORKERS = 1;
@@ -49,6 +51,19 @@ int getNeighbors(int** grid, int i, int j){ // -> quantidade de vizinhos vivos p
 		grid[i][j_high] + grid[i][j_low];
 }
 
+/*void update_grid(int** grid_ptr, int** newgrid_ptr){
+	int** aux = grid_ptr;
+	grid_ptr = newgrid_ptr;
+	newgrid_ptr = aux;
+}*/
+void update_grid(int** grid_ptr, int** newgrid_ptr){
+	for(int i=0;i<GRID_SIZE;i++){
+		for(int j=0;j<GRID_SIZE;j++){
+			grid_ptr[i][j] = newgrid_ptr[i][j];
+		}
+	}
+}
+
 
 int getAlive(int** grid, int shift)/* -> quantidade viva total 
 										shift: posição que cada worker começa a busca sequencial
@@ -59,7 +74,7 @@ int getAlive(int** grid, int shift)/* -> quantidade viva total
 	for(;ptr<grid+GRID_SIZE;ptr++){
         for(ptr2=*ptr+shift;ptr2<*ptr+GRID_SIZE;ptr2+=NUM_WORKERS){
         	if(*ptr2==1){q++;}
-			printf("%d\n", *ptr2);
+			//printf("%d\n", *ptr2);
         }
         shift = ptr2-(*ptr+GRID_SIZE);
         if(shift<0){
@@ -67,6 +82,15 @@ int getAlive(int** grid, int shift)/* -> quantidade viva total
         }
     }
     return q;
+}
+
+void print_grid(int** grid_ptr){
+	for(int i=0;i<GRID_SIZE;i++){
+		for(int j=0;j<GRID_SIZE;j++){
+			printf("%d", grid_ptr[i][j]);
+		}
+		printf("\n");
+	}
 }
 
 void* runGeneration(void* arg1){
@@ -95,15 +119,30 @@ void* runGeneration(void* arg1){
 				}
 			}
 		}
-		int pthread_barrier_wait(pthread_barrier_t *barrier);
-		//
+		pthread_barrier_wait(&barrier);
+		// thread helper atualiza os grids
+		pthread_barrier_wait(&barrier);
+		// recomeca com os grids atualizados
 	}
 }
 
-void update_grid(int** grid_ptr, int** newgrid_ptr){
-	int** aux = grid_ptr;
-	grid_ptr = newgrid_ptr;
-	newgrid_ptr = aux;
+void* thread_helper(void* arg1){
+	thread_args* arg = (thread_args*) arg1;
+	for(int i=0;i<NUM_GEN;i++){
+		pthread_barrier_wait(&barrier);
+		printf("\nGEN %d\n", i);
+		printf("grid pre\n");
+		print_grid(arg->grid_ptr);
+		printf("new grid pre\n");
+		print_grid(arg->newgrid_ptr);
+		update_grid(arg->grid_ptr, arg->newgrid_ptr);
+		printf("grid pos\n");
+		print_grid(arg->grid_ptr);
+		printf("new grid pos\n");
+		print_grid(arg->newgrid_ptr);
+		printf("\n");
+		pthread_barrier_wait(&barrier);
+	}
 }
 
 void init_args(thread_args* arg, int shift, int** grid_ptr, int** newgrid_ptr){ 
@@ -112,26 +151,20 @@ void init_args(thread_args* arg, int shift, int** grid_ptr, int** newgrid_ptr){
 	arg->newgrid_ptr = newgrid_ptr;
 }
 
-void print_grid(int** grid_ptr){
-	for(int i=0;i<GRID_SIZE;i++){
-		for(int j=0;j<GRID_SIZE;j++){
-			printf("%d", grid_ptr[i][j]);
-		}
-		printf("\n");
-	}
-}
 
 int main(int argc, char** argv){
 	int** grid = (int**) malloc(GRID_SIZE * sizeof(int*));
 	int** newgrid = (int**) malloc(GRID_SIZE * sizeof(int*));
 	int j, shift = 0, i;
-	pthread_barrier_t bar;
+	
 	for(i=0;i<GRID_SIZE;i++){
 		grid[i] = (int*) calloc(GRID_SIZE , sizeof(int));
 		newgrid[i] = (int*) calloc(GRID_SIZE , sizeof(int));
 	}
 
-	pthread_t tid[NUM_WORKERS];
+	pthread_t tid[NUM_WORKERS+1];
+	pthread_barrier_init (&barrier, NULL, NUM_WORKERS+1);
+
 	//GLIDER
 	int lin = 1, col = 1;
 	grid[lin  ][col+1] = 1;
@@ -148,6 +181,10 @@ int main(int argc, char** argv){
 		pthread_create(&(tid[j]), NULL, runGeneration, (void*) arg);
 		shift++;
     }
+    thread_args* arg;
+	arg = (thread_args*)malloc(sizeof(thread_args));
+	init_args(arg, shift, grid, newgrid);
+    pthread_create(&(tid[NUM_WORKERS]), NULL, thread_helper, (void*) arg);
     for(j=0; j<NUM_WORKERS; j++){
     	pthread_join(tid[j], NULL);
     }
@@ -168,4 +205,4 @@ int main(int argc, char** argv){
     
 }
 
-// TODO: o grid
+// TODO: o grid nao atualiza direito
