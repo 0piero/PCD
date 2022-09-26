@@ -14,15 +14,16 @@ Nomes:
 
 pthread_barrier_t barrier;
 
-int NUM_GEN = 10;
+int NUM_GEN = 400;
 int GRID_SIZE = 6;
-int NUM_WORKERS = 1;
+int NUM_WORKERS = 2;
 int vivos = 0;
 
 typedef struct {
     int* shift;
     int** grid_ptr;
     int** newgrid_ptr;
+    int i;
 } thread_args;
 
 /*
@@ -39,13 +40,13 @@ do tabuleiro e que a posição (N-1,N-1) identifica a célula no canto inferior 
 int getNeighbors(int** grid, int i, int j){ // -> quantidade de vizinhos vivos para a entrada a_{ij}
 	int i_low = (i+1)%GRID_SIZE, i_high = (i-1+GRID_SIZE)%GRID_SIZE, j_low = (j-1+GRID_SIZE)%GRID_SIZE, j_high = (j+1)%GRID_SIZE;
 	
-	int pos[8][2] = {{i_low, j_high}, {i_low, j_low}, 
-	{i_low, j}, {i_high, j_high}, 
-	{i_high, j_low}, {i_high, j},
-	{i, j_high}, {i, j_low}};
+	int pos[8][2] = {{i_low, j_low}, {i_low, j}, {i_low, j_high},
+	{i, j_low}, {i, j_high},
+	{i_high, j_low}, {i_high, j}, {i_high, j_high}};
 	int count=0;
 	for(int c=0;c<8;c++){
 		if(grid[pos[c][0]][pos[c][1]] == 1){
+			//if(i==3 && j==2){wprintf(L"sum: %d %d\n", pos[c][0], pos[c][1]);}
 			count++;
 		}
 	}
@@ -136,7 +137,7 @@ void* runGeneration(void* arg1){
 		int j = *(arg->shift)/GRID_SIZE, k = *(arg->shift)%GRID_SIZE;
 		for(;j<GRID_SIZE;k=k%GRID_SIZE){
 			for(;k<GRID_SIZE;k+=NUM_WORKERS, j+=k/GRID_SIZE){
-				//printf("jk: %d %d\n", j, k);
+				//wprintf(L"jk: %d %d\n", j, k);
 				int nn = getNeighbors(arg->grid_ptr, j, k);
 				if((arg->grid_ptr)[j][k]==1){
 					if(nn==2 || nn==3){
@@ -156,10 +157,20 @@ void* runGeneration(void* arg1){
 				}
 			}
 		}
+		
+		
 		pthread_barrier_wait(&barrier);
 		// thread helper atualiza os grids
-		pthread_barrier_wait(&barrier);
+		// pthread_barrier_wait(&barrier);
 		// recomeca com os grids atualizados
+		if(arg->i == 0){
+			print_2grids(arg->grid_ptr, arg->newgrid_ptr);
+		}
+		pthread_barrier_wait(&barrier);
+		int** aux = arg->grid_ptr;
+		arg->grid_ptr = arg->newgrid_ptr;
+		arg->newgrid_ptr = aux;
+		pthread_barrier_wait(&barrier);
 	}
 }
 
@@ -186,10 +197,11 @@ void* thread_helper(void* arg1){
 	}
 }
 
-void init_args(thread_args* arg, int shift, int** grid_ptr, int** newgrid_ptr){ 
+void init_args(thread_args* arg, int shift, int** grid_ptr, int** newgrid_ptr, int i){ 
 	arg->shift = &shift;
 	arg->grid_ptr = grid_ptr;
 	arg->newgrid_ptr = newgrid_ptr;
+	arg->i = i;
 }
 
 
@@ -206,7 +218,7 @@ int main(int argc, char** argv){
 	}
 
 	pthread_t tid[NUM_WORKERS+1];
-	pthread_barrier_init (&barrier, NULL, NUM_WORKERS+1);
+	pthread_barrier_init (&barrier, NULL, NUM_WORKERS);
 
 	//GLIDER
 	int lin = 1, col = 1;
@@ -220,14 +232,14 @@ int main(int argc, char** argv){
 	for(j=0;j<NUM_WORKERS;j++){
 		thread_args* arg;
 		arg = (thread_args*)malloc(sizeof(thread_args));
-		init_args(arg, shift, grid, newgrid);
+		init_args(arg, shift, grid, newgrid, j);
 		pthread_create(&(tid[j]), NULL, runGeneration, (void*) arg);
 		shift++;
     }
-    thread_args* arg;
-	arg = (thread_args*)malloc(sizeof(thread_args));
-	init_args(arg, shift, grid, newgrid);
-    pthread_create(&(tid[NUM_WORKERS]), NULL, thread_helper, (void*) arg);
+    //thread_args* arg;
+	//arg = (thread_args*)malloc(sizeof(thread_args));
+	//init_args(arg, shift, grid, newgrid);
+    //pthread_create(&(tid[NUM_WORKERS]), NULL, thread_helper, (void*) arg);
     for(j=0; j<NUM_WORKERS; j++){
     	pthread_join(tid[j], NULL);
     }
