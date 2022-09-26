@@ -9,11 +9,13 @@ Nomes:
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <wchar.h>
+#include <locale.h>
 
 pthread_barrier_t barrier;
 
-int NUM_GEN = 5;
-int GRID_SIZE = 5;
+int NUM_GEN = 10;
+int GRID_SIZE = 6;
 int NUM_WORKERS = 1;
 int vivos = 0;
 
@@ -26,7 +28,6 @@ typedef struct {
 /*
 Admita que a posição (0,0) identifica a célula no canto superior esquerdo
 do tabuleiro e que a posição (N-1,N-1) identifica a célula no canto inferior direito. 
-
 1) Qualquer célula viva com 2 (dois) ou 3 (três) vizinhos deve sobreviver;
 2) Qualquer célula morta com 3 (três) vizinhos torna-se viva;
 3) Qualquer outro caso, células vivas devem morrer e células já mortas devem continuar mortas.
@@ -37,33 +38,38 @@ do tabuleiro e que a posição (N-1,N-1) identifica a célula no canto inferior 
 
 int getNeighbors(int** grid, int i, int j){ // -> quantidade de vizinhos vivos para a entrada a_{ij}
 	int i_low = (i+1)%GRID_SIZE, i_high = (i-1+GRID_SIZE)%GRID_SIZE, j_low = (j-1+GRID_SIZE)%GRID_SIZE, j_high = (j+1)%GRID_SIZE;
-	//int pos[8][2] = {{i_low, j_high}, {i_low, j_low}, {i_low, j}, 
-	//{i_high, j_high}, {i_high, j_low}, {i_high, j},
-	//{i, j_high}, {i, j_low}};
-	//int count=0;
-	//for(int c=0;c<8;c++){
-	//	if(grid[pos[c][0]][pos[c][1]] == 1){
-	//		count++;
-	//	}
-	//}
-	return grid[i_low][j_high] + grid[i_low][j_low] + grid[i_low][j] +
-		grid[i_high][j_high] + grid[i_high][j_low] + grid[i_high][j] + 
-		grid[i][j_high] + grid[i][j_low];
+	
+	int pos[8][2] = {{i_low, j_high}, {i_low, j_low}, 
+	{i_low, j}, {i_high, j_high}, 
+	{i_high, j_low}, {i_high, j},
+	{i, j_high}, {i, j_low}};
+	int count=0;
+	for(int c=0;c<8;c++){
+		if(grid[pos[c][0]][pos[c][1]] == 1){
+			count++;
+		}
+	}
+	if(i==3 && j==2){wprintf(L"count32: %d\n", count);}
+	return count;
+	//return grid[i_low][j_high] + grid[i_low][j_low] + grid[i_low][j] +
+	//	grid[i_high][j_high] + grid[i_high][j_low] + grid[i_high][j] + 
+	//	grid[i][j_high] + grid[i][j_low];
 }
 
-/*void update_grid(int** grid_ptr, int** newgrid_ptr){
-	int** aux = grid_ptr;
-	grid_ptr = newgrid_ptr;
-	newgrid_ptr = aux;
-}*/
-void update_grid(int** grid_ptr, int** newgrid_ptr){
+void update_grid(int*** grid_ptr, int*** newgrid_ptr){
+	int** aux = *grid_ptr;
+	*grid_ptr = *newgrid_ptr;
+	*newgrid_ptr = aux;
+}
+/*
+void update_grid(int*** grid_ptr, int*** newgrid_ptr){
 	for(int i=0;i<GRID_SIZE;i++){
 		for(int j=0;j<GRID_SIZE;j++){
-			grid_ptr[i][j] = newgrid_ptr[i][j];
+			*(grid_ptr)[i][j] = newgrid_ptr[i][j];
 		}
 	}
 }
-
+*/
 
 int getAlive(int** grid, int shift)/* -> quantidade viva total 
 										shift: posição que cada worker começa a busca sequencial
@@ -87,19 +93,50 @@ int getAlive(int** grid, int shift)/* -> quantidade viva total
 void print_grid(int** grid_ptr){
 	for(int i=0;i<GRID_SIZE;i++){
 		for(int j=0;j<GRID_SIZE;j++){
-			printf("%d", grid_ptr[i][j]);
+			if(grid_ptr[i][j]==1){wprintf(L"%lc ", 0x25A0);}
+			else{wprintf(L"%lc ", 0x25A1);}
+			//printf("%c", grid_ptr[i][j]);
 		}
-		printf("\n");
+		wprintf(L"\n");
 	}
 }
 
+void print_2grids(int** grid_ptr, int** grid_ptr_new){
+	wprintf(L"  ");
+	for(int i=0;i<GRID_SIZE;i++){
+		wprintf(L"%d ", i);
+	}
+	wprintf(L"   ");
+	for(int i=0;i<GRID_SIZE;i++){
+		wprintf(L"%d ", i);
+	}
+	wprintf(L"\n");
+	for(int i=0;i<GRID_SIZE;i++){
+		wprintf(L"%d ", i);
+		for(int j=0;j<GRID_SIZE;j++){
+			if(grid_ptr[i][j]==1){wprintf(L"%lc ", 0x25A0);}
+			else{wprintf(L"%lc ", 0x25A1);}
+			//printf("%c", grid_ptr[i][j]);
+		}
+		wprintf(L"   ", 0x25A1);
+		for(int j=0;j<GRID_SIZE;j++){
+			if(grid_ptr_new[i][j]==1){wprintf(L"%lc ", 0x25A0);}
+			else{wprintf(L"%lc ", 0x25A1);}
+			//printf("%c", grid_ptr[i][j]);
+		}
+		wprintf(L"\n");
+	}
+}
+
+
 void* runGeneration(void* arg1){
 	thread_args* arg = (thread_args*) arg1;
-	int j = *(arg->shift)/GRID_SIZE, k = *(arg->shift)%GRID_SIZE;
+	
 	for(int i=0;i<NUM_GEN;i++){
+		int j = *(arg->shift)/GRID_SIZE, k = *(arg->shift)%GRID_SIZE;
 		for(;j<GRID_SIZE;k=k%GRID_SIZE){
 			for(;k<GRID_SIZE;k+=NUM_WORKERS, j+=k/GRID_SIZE){
-				printf("%d %d\n", j, k);
+				//printf("jk: %d %d\n", j, k);
 				int nn = getNeighbors(arg->grid_ptr, j, k);
 				if((arg->grid_ptr)[j][k]==1){
 					if(nn==2 || nn==3){
@@ -130,17 +167,21 @@ void* thread_helper(void* arg1){
 	thread_args* arg = (thread_args*) arg1;
 	for(int i=0;i<NUM_GEN;i++){
 		pthread_barrier_wait(&barrier);
-		printf("\nGEN %d\n", i);
-		printf("grid pre\n");
+		/*wprintf(L"\nGEN %d\n", i);
+		wprintf(L"grid pre\n");
 		print_grid(arg->grid_ptr);
-		printf("new grid pre\n");
-		print_grid(arg->newgrid_ptr);
-		update_grid(arg->grid_ptr, arg->newgrid_ptr);
-		printf("grid pos\n");
+		wprintf(L"new grid pre\n");
+		print_grid(arg->newgrid_ptr);*/
+		wprintf(L"PRE\n");
+		print_2grids(arg->grid_ptr, arg->newgrid_ptr);
+		update_grid(&(arg->grid_ptr), &(arg->newgrid_ptr));
+		/*wprintf(L"grid pos\n");
 		print_grid(arg->grid_ptr);
-		printf("new grid pos\n");
+		wprintf(L"new grid pos\n");
 		print_grid(arg->newgrid_ptr);
-		printf("\n");
+		wprintf(L"\n");*/
+		wprintf(L"POS\n");
+		print_2grids(arg->grid_ptr, arg->newgrid_ptr);
 		pthread_barrier_wait(&barrier);
 	}
 }
@@ -156,6 +197,8 @@ int main(int argc, char** argv){
 	int** grid = (int**) malloc(GRID_SIZE * sizeof(int*));
 	int** newgrid = (int**) malloc(GRID_SIZE * sizeof(int*));
 	int j, shift = 0, i;
+	
+	setlocale(LC_CTYPE, "");
 	
 	for(i=0;i<GRID_SIZE;i++){
 		grid[i] = (int*) calloc(GRID_SIZE , sizeof(int));
@@ -188,7 +231,7 @@ int main(int argc, char** argv){
     for(j=0; j<NUM_WORKERS; j++){
     	pthread_join(tid[j], NULL);
     }
-    printf("vivos: %d\n", getAlive(grid, shift));
+    wprintf(L"vivos: %d\n", getAlive(grid, shift));
 	print_grid(grid);
 
 	//R-pentomino
