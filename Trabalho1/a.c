@@ -14,13 +14,13 @@ Nomes:
 
 pthread_barrier_t barrier;
 
-int NUM_GEN = 400;
-int GRID_SIZE = 6;
-int NUM_WORKERS = 2;
+int NUM_GEN = 10;
+int GRID_SIZE = 36;
+int NUM_WORKERS = 8;
 int vivos = 0;
 
 typedef struct {
-    int* shift;
+    int shift;
     int** grid_ptr;
     int** newgrid_ptr;
     int i;
@@ -134,7 +134,7 @@ void* runGeneration(void* arg1){
 	thread_args* arg = (thread_args*) arg1;
 	
 	for(int i=0;i<NUM_GEN;i++){
-		int j = *(arg->shift)/GRID_SIZE, k = *(arg->shift)%GRID_SIZE;
+		int j = (arg->shift)/GRID_SIZE, k = (arg->shift)%GRID_SIZE;
 		for(;j<GRID_SIZE;k=k%GRID_SIZE){
 			for(;k<GRID_SIZE;k+=NUM_WORKERS, j+=k/GRID_SIZE){
 				//wprintf(L"jk: %d %d\n", j, k);
@@ -171,6 +171,7 @@ void* runGeneration(void* arg1){
 		arg->grid_ptr = arg->newgrid_ptr;
 		arg->newgrid_ptr = aux;
 		pthread_barrier_wait(&barrier);
+		usleep(80000);
 	}
 }
 
@@ -198,7 +199,7 @@ void* thread_helper(void* arg1){
 }
 
 void init_args(thread_args* arg, int shift, int** grid_ptr, int** newgrid_ptr, int i){ 
-	arg->shift = &shift;
+	arg->shift = shift;
 	arg->grid_ptr = grid_ptr;
 	arg->newgrid_ptr = newgrid_ptr;
 	arg->i = i;
@@ -210,6 +211,10 @@ int main(int argc, char** argv){
 	int** newgrid = (int**) malloc(GRID_SIZE * sizeof(int*));
 	int j, shift = 0, i;
 	
+	if(argc > 1){
+		NUM_GEN = atoi(argv[1]);
+	}
+
 	setlocale(LC_CTYPE, "");
 	
 	for(i=0;i<GRID_SIZE;i++){
@@ -221,12 +226,20 @@ int main(int argc, char** argv){
 	pthread_barrier_init (&barrier, NULL, NUM_WORKERS);
 
 	//GLIDER
-	int lin = 1, col = 1;
+	/*int lin = 1, col = 1;
 	grid[lin  ][col+1] = 1;
 	grid[lin+1][col+2] = 1;
 	grid[lin+2][col  ] = 1;
 	grid[lin+2][col+1] = 1;
-	grid[lin+2][col+2] = 1;
+	grid[lin+2][col+2] = 1;*/
+	//R-pentomino
+	int lin =10, col = 30;
+	grid[lin  ][col+1] = 1;
+	grid[lin  ][col+2] = 1;
+	grid[lin+1][col  ] = 1;
+	grid[lin+1][col+1] = 1;
+	grid[lin+2][col+1] = 1;
+
 	
 	print_grid(grid);
 	for(j=0;j<NUM_WORKERS;j++){
@@ -245,16 +258,6 @@ int main(int argc, char** argv){
     }
     wprintf(L"vivos: %d\n", getAlive(grid, shift));
 	print_grid(grid);
-
-	//R-pentomino
-	/*
-	lin =10; col = 30;
-	grid[lin  ][col+1] = 1;
-	grid[lin  ][col+2] = 1;
-	grid[lin+1][col  ] = 1;
-	grid[lin+1][col+1] = 1;
-	grid[lin+2][col+1] = 1;
-	*/
 
 	return 0;
     
