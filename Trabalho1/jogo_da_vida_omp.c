@@ -101,17 +101,17 @@ void print_grid(int** grid_ptr){
 }
 
 void print_2grids(int** grid_ptr, int** grid_ptr_new){
-	wprintf(L"  ");
+	wprintf(L"    ");
 	for(int i=0;i<GRID_SIZE;i++){
-		wprintf(L"%d ", i);
+		wprintf(L"%d ", i%10);
 	}
 	wprintf(L"   ");
 	for(int i=0;i<GRID_SIZE;i++){
-		wprintf(L"%d ", i);
+		wprintf(L"%d ", i%3);
 	}
 	wprintf(L"\n");
 	for(int i=0;i<GRID_SIZE;i++){
-		wprintf(L"%d ", i);
+		wprintf(L"%.3d ", i);
 		for(int j=0;j<GRID_SIZE;j++){
 			if(grid_ptr[i][j]==1){wprintf(L"%lc ", 0x25A0);}
 			else{wprintf(L"%lc ", 0x25A1);}
@@ -132,29 +132,36 @@ void* runGeneration(void* arg1){
 	thread_args* arg = (thread_args*) arg1;
 	
 	for(int i=0;i<NUM_GEN;i++){
-		int j = (arg->shift)/GRID_SIZE, k = (arg->shift)%GRID_SIZE;
-		for(;j<GRID_SIZE;k=k%GRID_SIZE){
-			for(;k<GRID_SIZE;k+=NUM_WORKERS, j+=k/GRID_SIZE){
-				//wprintf(L"jk: %d %d\n", j, k);
-				int nn = getNeighbors(arg->grid_ptr, j, k);
-				if((arg->grid_ptr)[j][k]==1){
-					if(nn==2 || nn==3){
-						(arg->newgrid_ptr)[j][k]=1;
+		omp_set_num_threads(4);
+		#pragma omp parallel for
+			for(int j=0;j<GRID_SIZE; j++){
+				for(int k=0;k<GRID_SIZE;k++){
+					//wprintf(L"jk: %d %d\n", j, k);
+					int nn = getNeighbors(arg->grid_ptr, j, k);
+					if((arg->grid_ptr)[j][k]==1){
+						if(nn==2 || nn==3){
+							(arg->newgrid_ptr)[j][k]=1;
+						}
+						else{
+							(arg->newgrid_ptr)[j][k]=0;
+						}
 					}
 					else{
-						(arg->newgrid_ptr)[j][k]=0;
+						if(nn==3){
+							(arg->newgrid_ptr)[j][k]=1;
+						}
+						else{
+							(arg->newgrid_ptr)[j][k]=0;
+						}
 					}
 				}
-				else{
-					if(nn==3){
-						(arg->newgrid_ptr)[j][k]=1;
-					}
-					else{
-						(arg->newgrid_ptr)[j][k]=0;
-					}
-				}
-			}
 		}
+		//pthread_barrier_wait(&barrier);
+		int** aux = arg->grid_ptr;
+		arg->grid_ptr = arg->newgrid_ptr;
+		arg->newgrid_ptr = aux;
+		print_2grids(arg->grid_ptr, arg->newgrid_ptr);
+		//pthread_barrier_wait(&barrier);
 		
 		
 		//pthread_barrier_wait(&barrier);
@@ -164,13 +171,7 @@ void* runGeneration(void* arg1){
 		if(arg->i == 0){
 			print_2grids(arg->grid_ptr, arg->newgrid_ptr);
 		}
-		#pragma omp barrier
-		//pthread_barrier_wait(&barrier);
-		int** aux = arg->grid_ptr;
-		arg->grid_ptr = arg->newgrid_ptr;
-		arg->newgrid_ptr = aux;
-		//pthread_barrier_wait(&barrier);
-		#pragma omp barrier		
+
 		usleep(80000);
 	}
 }
@@ -201,32 +202,30 @@ int main(int argc, char** argv){
 
 
 	//GLIDER
-	/*int lin = 1, col = 1;
+	int lin = 1, col = 1;
 	grid[lin  ][col+1] = 1;
 	grid[lin+1][col+2] = 1;
 	grid[lin+2][col  ] = 1;
 	grid[lin+2][col+1] = 1;
-	grid[lin+2][col+2] = 1;*/
+	grid[lin+2][col+2] = 1;
 	//R-pentomino
-	int lin =10, col = 30;
+	/*int lin =10, col = 30;
 	grid[lin  ][col+1] = 1;
 	grid[lin  ][col+2] = 1;
 	grid[lin+1][col  ] = 1;
 	grid[lin+1][col+1] = 1;
-	grid[lin+2][col+1] = 1;
+	grid[lin+2][col+1] = 1;*/
 
 	
 	print_grid(grid);
-	#pragma omp parallel shared(grid, newgrid, shift)
 	{
-		#pragma omp for
-		for(j=0;j<NUM_WORKERS;j++){
+		//for(j=0;j<NUM_WORKERS;j++){
 			thread_args* arg;
 			arg = (thread_args*)malloc(sizeof(thread_args));
 			init_args(arg, shift, grid, newgrid, j);
 			runGeneration((void*) arg);
 			shift++;
-	    }
+	    //}
 	}
     //thread_args* arg;
 	//arg = (thread_args*)malloc(sizeof(thread_args));
