@@ -76,14 +76,11 @@ int getAlive(int** grid, int shift)/* -> quantidade viva total
 								   */{
 	int q = 0, **ptr = grid, *ptr2 = NULL;
 
-	for(;ptr<grid+GRID_SIZE;ptr++){
-        for(ptr2=*ptr+shift;ptr2<*ptr+GRID_SIZE;ptr2+=NUM_WORKERS){
-        	if(*ptr2==1){q++;}
+	#pragma omp parallel for	
+	for(int i=0; i<GRID_SIZE; i++){
+        for(int j=0; j<GRID_SIZE; j++){
+        	if(grid[i][j]==1){q++;}
 			//printf("%d\n", *ptr2);
-        }
-        shift = ptr2-(*ptr+GRID_SIZE);
-        if(shift<0){
-			shift = 0;
         }
     }
     return q;
@@ -147,7 +144,7 @@ void* runGeneration(void* arg1){
 						}
 					}
 					else{
-						if(nn==3){
+						if(nn==3 || nn == 6){
 							(arg->newgrid_ptr)[j][k]=1;
 						}
 						else{
