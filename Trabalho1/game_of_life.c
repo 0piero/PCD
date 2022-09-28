@@ -35,9 +35,6 @@ do tabuleiro e que a posição (N-1,N-1) identifica a célula no canto inferior 
 3) Qualquer outro caso, células vivas devem morrer e células já mortas devem continuar mortas.
 */
 
-
-// mod -1 nao funciona, falei, C eh C
-
 int getNeighbors(int** grid, int i, int j){ // -> quantidade de vizinhos vivos para a entrada a_{ij}
 	int i_low = (i+1)%GRID_SIZE, i_high = (i-1+GRID_SIZE)%GRID_SIZE, j_low = (j-1+GRID_SIZE)%GRID_SIZE, j_high = (j+1)%GRID_SIZE;
 	
@@ -104,17 +101,17 @@ void print_grid(int** grid_ptr){
 }
 
 void print_2grids(int** grid_ptr, int** grid_ptr_new){
-	wprintf(L"  ");
+	wprintf(L"    ");
 	for(int i=0;i<GRID_SIZE;i++){
-		wprintf(L"%d ", i);
+		wprintf(L"%d ", i%10);
 	}
 	wprintf(L"   ");
 	for(int i=0;i<GRID_SIZE;i++){
-		wprintf(L"%d ", i);
+		wprintf(L"%d ", i%3);
 	}
 	wprintf(L"\n");
 	for(int i=0;i<GRID_SIZE;i++){
-		wprintf(L"%d ", i);
+		wprintf(L"%.3d ", i);
 		for(int j=0;j<GRID_SIZE;j++){
 			if(grid_ptr[i][j]==1){wprintf(L"%lc ", 0x25A0);}
 			else{wprintf(L"%lc ", 0x25A1);}
@@ -186,29 +183,6 @@ void* runGeneration(void* arg1){
 	}
 }
 
-void* thread_helper(void* arg1){
-	thread_args* arg = (thread_args*) arg1;
-	for(int i=0;i<NUM_GEN;i++){
-		pthread_barrier_wait(&barrier);
-		/*wprintf(L"\nGEN %d\n", i);
-		wprintf(L"grid pre\n");
-		print_grid(arg->grid_ptr);
-		wprintf(L"new grid pre\n");
-		print_grid(arg->newgrid_ptr);*/
-		wprintf(L"PRE\n");
-		print_2grids(arg->grid_ptr, arg->newgrid_ptr);
-		update_grid(&(arg->grid_ptr), &(arg->newgrid_ptr));
-		/*wprintf(L"grid pos\n");
-		print_grid(arg->grid_ptr);
-		wprintf(L"new grid pos\n");
-		print_grid(arg->newgrid_ptr);
-		wprintf(L"\n");*/
-		wprintf(L"POS\n");
-		print_2grids(arg->grid_ptr, arg->newgrid_ptr);
-		pthread_barrier_wait(&barrier);
-	}
-}
-
 void init_args(thread_args* arg, int shift, int** grid_ptr, int** newgrid_ptr, int* ptr_count, int i){ 
 	arg->shift = shift;
 	arg->grid_ptr = grid_ptr;
@@ -239,19 +213,19 @@ int main(int argc, char** argv){
 	pthread_barrier_init (&barrier, NULL, NUM_WORKERS);
 
 	//GLIDER
-	/*int lin = 1, col = 1;
+	int lin = 1, col = 1;
 	grid[lin  ][col+1] = 1;
 	grid[lin+1][col+2] = 1;
 	grid[lin+2][col  ] = 1;
 	grid[lin+2][col+1] = 1;
-	grid[lin+2][col+2] = 1;*/
+	grid[lin+2][col+2] = 1;
 	//R-pentomino
-	int lin =10, col = 30;
+	/*int lin =10, col = 30;
 	grid[lin  ][col+1] = 1;
 	grid[lin  ][col+2] = 1;
 	grid[lin+1][col  ] = 1;
 	grid[lin+1][col+1] = 1;
-	grid[lin+2][col+1] = 1;
+	grid[lin+2][col+1] = 1;*/
 
 	
 	print_grid(grid);
@@ -266,14 +240,15 @@ int main(int argc, char** argv){
 	//arg = (thread_args*)malloc(sizeof(thread_args));
 	//init_args(arg, shift, grid, newgrid);
     //pthread_create(&(tid[NUM_WORKERS]), NULL, thread_helper, (void*) arg);
+	int soma = 0;
     for(j=0; j<NUM_WORKERS; j++){
     	pthread_join(tid[j], NULL);
+    	soma += getAlive(grid, j);
     }
-    wprintf(L"vivos: %d\n", getAlive(grid, shift));
+    wprintf(L"vivos: %d\n", soma);
 	print_grid(grid);
 
 	return 0;
     
 }
 
-// TODO: o grid nao atualiza direito
