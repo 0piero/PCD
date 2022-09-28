@@ -104,7 +104,7 @@ void print_2grids(int** grid_ptr, int** grid_ptr_new){
 	}
 	wprintf(L"   ");
 	for(int i=0;i<GRID_SIZE;i++){
-		wprintf(L"%d ", i%3);
+		wprintf(L"%d ", i%10);
 	}
 	wprintf(L"\n");
 	for(int i=0;i<GRID_SIZE;i++){
