@@ -15,7 +15,7 @@ Nomes:
 pthread_barrier_t barrier;
 
 int NUM_GEN = 10;
-int GRID_SIZE = 36;
+int GRID_SIZE = 16;
 int NUM_WORKERS = 8;
 int vivos = 0;
 
@@ -23,6 +23,7 @@ typedef struct {
     int shift;
     int** grid_ptr;
     int** newgrid_ptr;
+    int* ptr_count;
     int i;
 } thread_args;
 
@@ -129,10 +130,14 @@ void print_2grids(int** grid_ptr, int** grid_ptr_new){
 	}
 }
 
+void* sumReduction(int* ptr_count, int start){
+	ptr_count[start] += ptr_count[start+1];
+}
+
 
 void* runGeneration(void* arg1){
 	thread_args* arg = (thread_args*) arg1;
-	
+	int r = NUM_WORKERS/2;
 	for(int i=0;i<NUM_GEN;i++){
 		int j = (arg->shift)/GRID_SIZE, k = (arg->shift)%GRID_SIZE;
 		for(;j<GRID_SIZE;k=k%GRID_SIZE){
@@ -171,6 +176,12 @@ void* runGeneration(void* arg1){
 		arg->grid_ptr = arg->newgrid_ptr;
 		arg->newgrid_ptr = aux;
 		pthread_barrier_wait(&barrier);
+		arg->ptr_count[arg->shift] = getAlive(arg->grid_ptr, arg->shift);
+		if (arg->shift < r){
+			sumReduction(arg->ptr_count, arg->shift);
+			r = r/2;
+		} 
+		pthread_barrier_wait(&barrier);
 		usleep(80000);
 	}
 }
@@ -198,9 +209,10 @@ void* thread_helper(void* arg1){
 	}
 }
 
-void init_args(thread_args* arg, int shift, int** grid_ptr, int** newgrid_ptr, int i){ 
+void init_args(thread_args* arg, int shift, int** grid_ptr, int** newgrid_ptr, int* ptr_count, int i){ 
 	arg->shift = shift;
 	arg->grid_ptr = grid_ptr;
+	arg->ptr_count= ptr_count;
 	arg->newgrid_ptr = newgrid_ptr;
 	arg->i = i;
 }
@@ -209,6 +221,7 @@ void init_args(thread_args* arg, int shift, int** grid_ptr, int** newgrid_ptr, i
 int main(int argc, char** argv){
 	int** grid = (int**) malloc(GRID_SIZE * sizeof(int*));
 	int** newgrid = (int**) malloc(GRID_SIZE * sizeof(int*));
+	int* thread_count = (int*) malloc(NUM_WORKERS * sizeof(int));
 	int j, shift = 0, i;
 	
 	if(argc > 1){
@@ -245,7 +258,7 @@ int main(int argc, char** argv){
 	for(j=0;j<NUM_WORKERS;j++){
 		thread_args* arg;
 		arg = (thread_args*)malloc(sizeof(thread_args));
-		init_args(arg, shift, grid, newgrid, j);
+		init_args(arg, shift, grid, newgrid, thread_count, j);
 		pthread_create(&(tid[j]), NULL, runGeneration, (void*) arg);
 		shift++;
     }
