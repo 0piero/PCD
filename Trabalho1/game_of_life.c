@@ -11,6 +11,7 @@ Nomes:
 #include <pthread.h>
 #include <wchar.h>
 #include <locale.h>
+#include <time.h>
 
 pthread_barrier_t barrier;
 
@@ -48,7 +49,6 @@ int getNeighbors(int** grid, int i, int j){ // -> quantidade de vizinhos vivos p
 			count++;
 		}
 	}
-	if(i==3 && j==2){wprintf(L"count32: %d\n", count);}
 	return count;
 	//return grid[i_low][j_high] + grid[i_low][j_low] + grid[i_low][j] +
 	//	grid[i_high][j_high] + grid[i_high][j_low] + grid[i_high][j] + 
@@ -161,7 +161,7 @@ void* runGeneration(void* arg1){
 		}
 		
 		
-		pthread_barrier_wait(&barrier);
+		//pthread_barrier_wait(&barrier);
 		// thread helper atualiza os grids
 		// pthread_barrier_wait(&barrier);
 		// recomeca com os grids atualizados
@@ -179,7 +179,7 @@ void* runGeneration(void* arg1){
 			r = r/2;
 		} 
 		pthread_barrier_wait(&barrier);
-		usleep(80000);
+		//usleep(80000);
 	}
 }
 
@@ -193,14 +193,21 @@ void init_args(thread_args* arg, int shift, int** grid_ptr, int** newgrid_ptr, i
 
 
 int main(int argc, char** argv){
+	if(argc > 1){
+		NUM_GEN = atoi(argv[1]);
+	}if(argc > 2){
+		NUM_WORKERS = atoi(argv[2]);
+	}if(argc > 3){
+		GRID_SIZE = atoi(argv[3]);
+	}
+
 	int** grid = (int**) malloc(GRID_SIZE * sizeof(int*));
 	int** newgrid = (int**) malloc(GRID_SIZE * sizeof(int*));
 	int* thread_count = (int*) malloc(NUM_WORKERS * sizeof(int));
 	int j, shift = 0, i;
-	
-	if(argc > 1){
-		NUM_GEN = atoi(argv[1]);
-	}
+	time_t seconds;
+     
+    seconds = time(NULL);
 
 	setlocale(LC_CTYPE, "");
 	
@@ -228,7 +235,7 @@ int main(int argc, char** argv){
 	grid[lin+2][col+1] = 1;*/
 
 	
-	print_grid(grid);
+	//print_grid(grid);
 	for(j=0;j<NUM_WORKERS;j++){
 		thread_args* arg;
 		arg = (thread_args*)malloc(sizeof(thread_args));
@@ -245,8 +252,8 @@ int main(int argc, char** argv){
     	pthread_join(tid[j], NULL);
     	soma += getAlive(grid, j);
     }
-    wprintf(L"vivos: %d\n", soma);
-	print_grid(grid);
+    wprintf(L"vivos: %d\ntempo total: %ld\n", soma, time(NULL)-seconds);
+	//print_grid(grid);
 
 	return 0;
     
