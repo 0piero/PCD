@@ -2,7 +2,7 @@
 Nomes:
 	1) Piero A. L. Ribeiro; RA: 148052
 	2) Vinicius L. Mello; RA: 140470
-	3)
+	3) Paulo R. C. Pedro; RA: 147906
 */
 
 #include <stdio.h>
