@@ -116,7 +116,7 @@ void* runGeneration(void* arg1){
 					}
 				}
 				else{
-					if(nn==3 || n==6){
+					if(nn==3 || nn==6){
 						(arg->newgrid_ptr)[j][k]=1;
 					}
 					else{
