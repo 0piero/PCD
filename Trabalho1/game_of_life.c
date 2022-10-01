@@ -12,20 +12,17 @@ Nomes:
 #include <wchar.h>
 #include <locale.h>
 #include <time.h>
-
+#include <sys/time.h>
 pthread_barrier_t barrier;
 
 int NUM_GEN = 10;
 int GRID_SIZE = 16;
 int NUM_WORKERS = 8;
-int vivos = 0;
 
 typedef struct {
     int shift;
     int** grid_ptr;
     int** newgrid_ptr;
-    int* ptr_count;
-    int i;
 } thread_args;
 
 /*
@@ -36,7 +33,7 @@ do tabuleiro e que a posição (N-1,N-1) identifica a célula no canto inferior 
 3) Qualquer outro caso, células vivas devem morrer e células já mortas devem continuar mortas.
 */
 
-int getNeighbors(int** grid, int i, int j){ // -> quantidade de vizinhos vivos para a entrada a_{ij}
+int getNeighbors(int** grid, int i, int j){ 
 	int i_low = (i+1)%GRID_SIZE, i_high = (i-1+GRID_SIZE)%GRID_SIZE, j_low = (j-1+GRID_SIZE)%GRID_SIZE, j_high = (j+1)%GRID_SIZE;
 	
 	int pos[8][2] = {{i_low, j_low}, {i_low, j}, {i_low, j_high},
@@ -45,47 +42,25 @@ int getNeighbors(int** grid, int i, int j){ // -> quantidade de vizinhos vivos p
 	int count=0;
 	for(int c=0;c<8;c++){
 		if(grid[pos[c][0]][pos[c][1]] == 1){
-			//if(i==3 && j==2){wprintf(L"sum: %d %d\n", pos[c][0], pos[c][1]);}
 			count++;
 		}
 	}
 	return count;
-	//return grid[i_low][j_high] + grid[i_low][j_low] + grid[i_low][j] +
-	//	grid[i_high][j_high] + grid[i_high][j_low] + grid[i_high][j] + 
-	//	grid[i][j_high] + grid[i][j_low];
 }
 
-void update_grid(int*** grid_ptr, int*** newgrid_ptr){
-	int** aux = *grid_ptr;
-	*grid_ptr = *newgrid_ptr;
-	*newgrid_ptr = aux;
-}
-/*
-void update_grid(int*** grid_ptr, int*** newgrid_ptr){
-	for(int i=0;i<GRID_SIZE;i++){
-		for(int j=0;j<GRID_SIZE;j++){
-			*(grid_ptr)[i][j] = newgrid_ptr[i][j];
-		}
-	}
-}
-*/
-
-int getAlive(int** grid, int shift)/* -> quantidade viva total 
-										shift: posição que cada worker começa a busca sequencial
-										(e.g. {shift, shift+NUM_WORKERS, ... , shift%NUM_WORKERS + NUM_WORKERS*(floor(GRID_SIZE^2/NUM_WORKERS) - 1)})										
-								   */{
+int getAlive(int** grid, int shift){
 	int q = 0, **ptr = grid, *ptr2 = NULL;
 
 	for(;ptr<grid+GRID_SIZE;ptr++){
         for(ptr2=*ptr+shift;ptr2<*ptr+GRID_SIZE;ptr2+=NUM_WORKERS){
         	if(*ptr2==1){q++;}
-			//printf("%d\n", *ptr2);
         }
         shift = ptr2-(*ptr+GRID_SIZE);
         if(shift<0){
 			shift = 0;
         }
     }
+    
     return q;
 }
 
@@ -94,7 +69,6 @@ void print_grid(int** grid_ptr){
 		for(int j=0;j<GRID_SIZE;j++){
 			if(grid_ptr[i][j]==1){wprintf(L"%lc ", 0x25A0);}
 			else{wprintf(L"%lc ", 0x25A1);}
-			//printf("%c", grid_ptr[i][j]);
 		}
 		wprintf(L"\n");
 	}
@@ -115,31 +89,23 @@ void print_2grids(int** grid_ptr, int** grid_ptr_new){
 		for(int j=0;j<GRID_SIZE;j++){
 			if(grid_ptr[i][j]==1){wprintf(L"%lc ", 0x25A0);}
 			else{wprintf(L"%lc ", 0x25A1);}
-			//printf("%c", grid_ptr[i][j]);
 		}
 		wprintf(L"   ", 0x25A1);
 		for(int j=0;j<GRID_SIZE;j++){
 			if(grid_ptr_new[i][j]==1){wprintf(L"%lc ", 0x25A0);}
 			else{wprintf(L"%lc ", 0x25A1);}
-			//printf("%c", grid_ptr[i][j]);
 		}
 		wprintf(L"\n");
 	}
 }
 
-void* sumReduction(int* ptr_count, int start){
-	ptr_count[start] += ptr_count[start+1];
-}
-
-
 void* runGeneration(void* arg1){
 	thread_args* arg = (thread_args*) arg1;
-	int r = NUM_WORKERS/2;
+
 	for(int i=0;i<NUM_GEN;i++){
 		int j = (arg->shift)/GRID_SIZE, k = (arg->shift)%GRID_SIZE;
 		for(;j<GRID_SIZE;k=k%GRID_SIZE){
 			for(;k<GRID_SIZE;k+=NUM_WORKERS, j+=k/GRID_SIZE){
-				//wprintf(L"jk: %d %d\n", j, k);
 				int nn = getNeighbors(arg->grid_ptr, j, k);
 				if((arg->grid_ptr)[j][k]==1){
 					if(nn==2 || nn==3){
@@ -159,13 +125,7 @@ void* runGeneration(void* arg1){
 				}
 			}
 		}
-		
-		
-		//pthread_barrier_wait(&barrier);
-		// thread helper atualiza os grids
-		// pthread_barrier_wait(&barrier);
-		// recomeca com os grids atualizados
-		if(arg->i == 0){
+		if(arg->shift == 0){
 			print_2grids(arg->grid_ptr, arg->newgrid_ptr);
 		}
 		pthread_barrier_wait(&barrier);
@@ -173,26 +133,27 @@ void* runGeneration(void* arg1){
 		arg->grid_ptr = arg->newgrid_ptr;
 		arg->newgrid_ptr = aux;
 		pthread_barrier_wait(&barrier);
-		arg->ptr_count[arg->shift] = getAlive(arg->grid_ptr, arg->shift);
-		if (arg->shift < r){
-			sumReduction(arg->ptr_count, arg->shift);
-			r = r/2;
-		} 
-		pthread_barrier_wait(&barrier);
-		//usleep(80000);
 	}
+	int alive_count = getAlive(arg->grid_ptr, arg->shift);
+	int* ret = (int*) malloc(sizeof(int));
+	*ret = alive_count;
+	pthread_exit((void*) ret);
 }
 
-void init_args(thread_args* arg, int shift, int** grid_ptr, int** newgrid_ptr, int* ptr_count, int i){ 
+void init_args(thread_args* arg, int shift, int** grid_ptr, int** newgrid_ptr){ 
 	arg->shift = shift;
 	arg->grid_ptr = grid_ptr;
-	arg->ptr_count= ptr_count;
 	arg->newgrid_ptr = newgrid_ptr;
-	arg->i = i;
 }
 
 
 int main(int argc, char** argv){
+	struct timeval inicio, final2;
+	struct timeval inicio_concorrente, final2_concorrente;
+	int tmili, tmili_concorrente;
+
+	gettimeofday(&inicio, NULL);
+
 	if(argc > 1){
 		NUM_GEN = atoi(argv[1]);
 	}if(argc > 2){
@@ -203,7 +164,7 @@ int main(int argc, char** argv){
 
 	int** grid = (int**) malloc(GRID_SIZE * sizeof(int*));
 	int** newgrid = (int**) malloc(GRID_SIZE * sizeof(int*));
-	int* thread_count = (int*) malloc(NUM_WORKERS * sizeof(int));
+	
 	int j, shift = 0, i;
 	time_t seconds;
      
@@ -234,28 +195,34 @@ int main(int argc, char** argv){
 	grid[lin+1][col+1] = 1;
 	grid[lin+2][col+1] = 1;*/
 
-	
-	//print_grid(grid);
+	gettimeofday(&inicio_concorrente, NULL);
 	for(j=0;j<NUM_WORKERS;j++){
 		thread_args* arg;
 		arg = (thread_args*)malloc(sizeof(thread_args));
-		init_args(arg, shift, grid, newgrid, thread_count, j);
+		init_args(arg, shift, grid, newgrid);
 		pthread_create(&(tid[j]), NULL, runGeneration, (void*) arg);
 		shift++;
     }
-    //thread_args* arg;
-	//arg = (thread_args*)malloc(sizeof(thread_args));
-	//init_args(arg, shift, grid, newgrid);
-    //pthread_create(&(tid[NUM_WORKERS]), NULL, thread_helper, (void*) arg);
-	int soma = 0;
+
+	int* thread_count[NUM_WORKERS];
+	int soma_total=0;
     for(j=0; j<NUM_WORKERS; j++){
-    	pthread_join(tid[j], NULL);
-    	soma += getAlive(grid, j);
+    	pthread_join(tid[j], (void**) &(thread_count[j]));
     }
-    wprintf(L"vivos: %d\ntempo total: %ld\n", soma, time(NULL)-seconds);
-	//print_grid(grid);
+    gettimeofday(&final2_concorrente, NULL);
+    for(int i=0;i<NUM_WORKERS;i++){
+    	soma_total+=*(thread_count[i]);
+    }
+
+    wprintf(L"vivos: %d\n", soma_total);
+    gettimeofday(&final2, NULL);
+
+	tmili = (int) (1000 * (final2.tv_sec - inicio.tv_sec) + (final2.tv_usec - inicio.tv_usec) / 1000);
+	tmili_concorrente = (int) (1000 * (final2_concorrente.tv_sec - inicio_concorrente.tv_sec) + (final2_concorrente.tv_usec - inicio_concorrente.tv_usec) / 1000);  
+
+	wprintf(L"tempo decorrido: %d milisegundos\n", tmili);
+	wprintf(L"tempo trecho concorrente: %d milisegundos\n", tmili_concorrente);
 
 	return 0;
     
 }
-
