@@ -17,7 +17,6 @@ int GRID_SIZE = 36;
 int NUM_WORKERS = 8;
 
 typedef struct {
-    //int shift;
     int** grid_ptr;
     int** newgrid_ptr;
 } thread_args;
@@ -46,11 +45,11 @@ int getNeighbors(int** grid, int i, int j){
 }
 
 int getAlive(int** grid){
-	int q = 0;
+	int q = 0, i, j;
 
-	#pragma omp for	
-		for(int i=0; i<GRID_SIZE; i++){
-    	    for(int j=0; j<GRID_SIZE; j++){
+	#pragma omp for private(i, j)	
+		for(i=0; i<GRID_SIZE; i++){
+    	    for(j=0; j<GRID_SIZE; j++){
     	    	if(grid[i][j]==1){q++;}
     	    }
     	}
@@ -95,30 +94,33 @@ void print_2grids(int** grid_ptr, int** grid_ptr_new){
 
 
 int* runGeneration(void* arg1){
-	thread_args* arg = (thread_args*) arg1;
-	int i, alive_count;
-	#pragma omp parallel num_threads(NUM_WORKERS) private(i, arg) reduction(+: alive_count)
+	thread_args arg = *((thread_args*) arg1);
+	int i, j, k, alive_count=0;
+	#pragma omp parallel num_threads(NUM_WORKERS) private(i, j, k, arg) reduction(+: alive_count)
 	{
+		// segfault aq
+		//printf("test\n");
+		//wprintf(L"%d\n", (arg.grid_ptr)[0][0]);
+		//printf("test\n");
 		for(i=0;i<NUM_GEN;i++){
 			#pragma omp for
-				for(int j=0;j<GRID_SIZE; j++){
-					for(int k=0;k<GRID_SIZE;k++){
-						printf("%d %d\n", j, k);
-						int nn = getNeighbors(arg->grid_ptr, j, k);
-						if((arg->grid_ptr)[j][k]==1){
+				for(j=0;j<GRID_SIZE; j++){
+					for(k=0;k<GRID_SIZE;k++){
+						int nn = getNeighbors(arg.grid_ptr, j, k);
+						if((arg.grid_ptr)[j][k]==1){
 							if(nn==2 || nn==3){
-								(arg->newgrid_ptr)[j][k]=1;
+								(arg.newgrid_ptr)[j][k]=1;
 							}
 							else{
-								(arg->newgrid_ptr)[j][k]=0;
+								(arg.newgrid_ptr)[j][k]=0;
 							}
 						}
 						else{
 							if(nn==3){
-								(arg->newgrid_ptr)[j][k]=1;
+								(arg.newgrid_ptr)[j][k]=1;
 							}
 							else{
-								(arg->newgrid_ptr)[j][k]=0;
+								(arg.newgrid_ptr)[j][k]=0;
 							}
 						}
 					}
@@ -126,14 +128,13 @@ int* runGeneration(void* arg1){
 			//if(arg->shift == 0){
 			//	print_2grids(arg->grid_ptr, arg->newgrid_ptr);
 			//}
-			printf("test\n");
 			#pragma omp barrier 
-			int** aux = arg->grid_ptr;
-			arg->grid_ptr = arg->newgrid_ptr;
-			arg->newgrid_ptr = aux;
+			int** aux = arg.grid_ptr;
+			arg.grid_ptr = arg.newgrid_ptr;
+			arg.newgrid_ptr = aux;
 			#pragma omp barrier 
 		}
-		alive_count = getAlive(arg->grid_ptr);
+		alive_count += getAlive(arg.grid_ptr);
 	}
 	int* ret = (int*) malloc(sizeof(int));
 	*ret = alive_count;
