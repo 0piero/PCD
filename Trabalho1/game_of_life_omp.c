@@ -37,6 +37,7 @@ int getNeighbors(int** grid, int i, int j){
 	int count=0;
 
 	for(int c=0;c<8;c++){
+		//printf("%d\n",grid[pos[c][0]][pos[c][1]]);
 		if(grid[pos[c][0]][pos[c][1]] == 1){
 			count++;
 		}
@@ -93,10 +94,10 @@ void print_2grids(int** grid_ptr, int** grid_ptr_new){
 }
 
 
-int* runGeneration(void* arg1){
+int runGeneration(void* arg1){
 	thread_args arg = *((thread_args*) arg1);
 	int i, j, k, alive_count=0;
-	#pragma omp parallel num_threads(NUM_WORKERS) private(i, j, k, arg) reduction(+: alive_count)
+	#pragma omp parallel num_threads(NUM_WORKERS) private(i, j, k) reduction(+: alive_count)
 	{
 		// segfault aq
 		//printf("test\n");
@@ -107,6 +108,7 @@ int* runGeneration(void* arg1){
 				for(j=0;j<GRID_SIZE; j++){
 					for(k=0;k<GRID_SIZE;k++){
 						int nn = getNeighbors(arg.grid_ptr, j, k);
+						//printf("Cheguei aqui agora");
 						if((arg.grid_ptr)[j][k]==1){
 							if(nn==2 || nn==3){
 								(arg.newgrid_ptr)[j][k]=1;
@@ -123,22 +125,28 @@ int* runGeneration(void* arg1){
 								(arg.newgrid_ptr)[j][k]=0;
 							}
 						}
+						//printf("j = %d, k = %d\n",j,k);
 					}
+					//printf("Finalizado\n");
 				}
-			//if(arg->shift == 0){
-			//	print_2grids(arg->grid_ptr, arg->newgrid_ptr);
-			//}
+			#pragma omp single
+				{
+				print_2grids(arg.grid_ptr, arg.newgrid_ptr);
+				}
 			#pragma omp barrier 
+			#pragma omp single
+				{
 			int** aux = arg.grid_ptr;
 			arg.grid_ptr = arg.newgrid_ptr;
 			arg.newgrid_ptr = aux;
+				}
 			#pragma omp barrier 
 		}
 		alive_count += getAlive(arg.grid_ptr);
 	}
-	int* ret = (int*) malloc(sizeof(int));
-	*ret = alive_count;
-	return ret;
+	//int* ret = (int*) malloc(sizeof(int));
+	//*ret = alive_count;
+	return alive_count;
 }
 
 void init_args(thread_args* arg, int** grid_ptr, int** newgrid_ptr){ 
@@ -174,7 +182,6 @@ int main(int argc, char** argv){
 		newgrid[i] = (int*) calloc(GRID_SIZE , sizeof(int));
 	}
 
-
 	//GLIDER
 	int lin = 1, col = 1;
 	grid[lin  ][col+1] = 1;
@@ -194,11 +201,11 @@ int main(int argc, char** argv){
 	thread_args* arg;
 	arg = (thread_args*)malloc(sizeof(thread_args));
 	init_args(arg, grid, newgrid);
-	int* soma_total = runGeneration((void*) arg);
+	int soma_total = runGeneration((void*) arg);
 	gettimeofday(&final2_concorrente, NULL);
-	wprintf(L"vivos: %d\n", *soma_total);
+	wprintf(L"vivos: %d\n", soma_total);
 	gettimeofday(&final2, NULL);
 
-
+	
 	return 0;
 }
