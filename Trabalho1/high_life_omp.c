@@ -11,17 +11,14 @@ Nomes:
 #include <omp.h>
 #include <wchar.h>
 #include <locale.h>
-
+#include <sys/time.h>
 int NUM_GEN = 10;
 int GRID_SIZE = 36;
 int NUM_WORKERS = 8;
-int vivos = 0;
 
 typedef struct {
-    int shift;
     int** grid_ptr;
     int** newgrid_ptr;
-    int i;
 } thread_args;
 
 /*
@@ -32,57 +29,31 @@ do tabuleiro e que a posição (N-1,N-1) identifica a célula no canto inferior 
 3) Qualquer outro caso, células vivas devem morrer e células já mortas devem continuar mortas.
 */
 
-
-// mod -1 nao funciona, falei, C eh C
-
-int getNeighbors(int** grid, int i, int j){ // -> quantidade de vizinhos vivos para a entrada a_{ij}
+int getNeighbors(int** grid, int i, int j){
 	int i_low = (i+1)%GRID_SIZE, i_high = (i-1+GRID_SIZE)%GRID_SIZE, j_low = (j-1+GRID_SIZE)%GRID_SIZE, j_high = (j+1)%GRID_SIZE;
-	
 	int pos[8][2] = {{i_low, j_low}, {i_low, j}, {i_low, j_high},
 	{i, j_low}, {i, j_high},
 	{i_high, j_low}, {i_high, j}, {i_high, j_high}};
 	int count=0;
+
 	for(int c=0;c<8;c++){
+		//printf("%d\n",grid[pos[c][0]][pos[c][1]]);
 		if(grid[pos[c][0]][pos[c][1]] == 1){
-			//if(i==3 && j==2){wprintf(L"sum: %d %d\n", pos[c][0], pos[c][1]);}
 			count++;
 		}
 	}
-	if(i==3 && j==2){wprintf(L"count32: %d\n", count);}
 	return count;
-	//return grid[i_low][j_high] + grid[i_low][j_low] + grid[i_low][j] +
-	//	grid[i_high][j_high] + grid[i_high][j_low] + grid[i_high][j] + 
-	//	grid[i][j_high] + grid[i][j_low];
 }
 
-void update_grid(int*** grid_ptr, int*** newgrid_ptr){
-	int** aux = *grid_ptr;
-	*grid_ptr = *newgrid_ptr;
-	*newgrid_ptr = aux;
-}
-/*
-void update_grid(int*** grid_ptr, int*** newgrid_ptr){
-	for(int i=0;i<GRID_SIZE;i++){
-		for(int j=0;j<GRID_SIZE;j++){
-			*(grid_ptr)[i][j] = newgrid_ptr[i][j];
-		}
-	}
-}
-*/
+int getAlive(int** grid){
+	int q = 0, i, j;
 
-int getAlive(int** grid, int shift)/* -> quantidade viva total 
-										shift: posição que cada worker começa a busca sequencial
-										(e.g. {shift, shift+NUM_WORKERS, ... , shift%NUM_WORKERS + NUM_WORKERS*(floor(GRID_SIZE^2/NUM_WORKERS) - 1)})										
-								   */{
-	int q = 0, **ptr = grid, *ptr2 = NULL;
-
-	#pragma omp parallel for	
-	for(int i=0; i<GRID_SIZE; i++){
-        for(int j=0; j<GRID_SIZE; j++){
-        	if(grid[i][j]==1){q++;}
-			//printf("%d\n", *ptr2);
-        }
-    }
+	#pragma omp for private(i, j)	
+		for(i=0; i<GRID_SIZE; i++){
+    	    for(j=0; j<GRID_SIZE; j++){
+    	    	if(grid[i][j]==1){q++;}
+    	    }
+    	}
     return q;
 }
 
@@ -91,7 +62,6 @@ void print_grid(int** grid_ptr){
 		for(int j=0;j<GRID_SIZE;j++){
 			if(grid_ptr[i][j]==1){wprintf(L"%lc ", 0x25A0);}
 			else{wprintf(L"%lc ", 0x25A1);}
-			//printf("%c", grid_ptr[i][j]);
 		}
 		wprintf(L"\n");
 	}
@@ -118,77 +88,92 @@ void print_2grids(int** grid_ptr, int** grid_ptr_new){
 		for(int j=0;j<GRID_SIZE;j++){
 			if(grid_ptr_new[i][j]==1){wprintf(L"%lc ", 0x25A0);}
 			else{wprintf(L"%lc ", 0x25A1);}
-			//printf("%c", grid_ptr[i][j]);
 		}
 		wprintf(L"\n");
 	}
 }
 
 
-void* runGeneration(void* arg1){
-	thread_args* arg = (thread_args*) arg1;
-	
-	for(int i=0;i<NUM_GEN;i++){
-		omp_set_num_threads(4);
-		#pragma omp parallel for
-			for(int j=0;j<GRID_SIZE; j++){
-				for(int k=0;k<GRID_SIZE;k++){
-					//wprintf(L"jk: %d %d\n", j, k);
-					int nn = getNeighbors(arg->grid_ptr, j, k);
-					if((arg->grid_ptr)[j][k]==1){
-						if(nn==2 || nn==3){
-							(arg->newgrid_ptr)[j][k]=1;
+int runGeneration(void* arg1){
+	thread_args arg = *((thread_args*) arg1);
+	int i, j, k, alive_count=0;
+	#pragma omp parallel num_threads(NUM_WORKERS) private(i, j, k) reduction(+: alive_count)
+	{
+		// segfault aq
+		//printf("test\n");
+		//wprintf(L"%d\n", (arg.grid_ptr)[0][0]);
+		//printf("test\n");
+		for(i=0;i<NUM_GEN;i++){
+			#pragma omp for
+				for(j=0;j<GRID_SIZE; j++){
+					for(k=0;k<GRID_SIZE;k++){
+						int nn = getNeighbors(arg.grid_ptr, j, k);
+						//printf("Cheguei aqui agora");
+						if((arg.grid_ptr)[j][k]==1){
+							if(nn==2 || nn==3){
+								(arg.newgrid_ptr)[j][k]=1;
+							}
+							else{
+								(arg.newgrid_ptr)[j][k]=0;
+							}
 						}
 						else{
-							(arg->newgrid_ptr)[j][k]=0;
+							if(nn==3 || nn ==6){
+								(arg.newgrid_ptr)[j][k]=1;
+							}
+							else{
+								(arg.newgrid_ptr)[j][k]=0;
+							}
 						}
+						//printf("j = %d, k = %d\n",j,k);
 					}
-					else{
-						if(nn==3 || nn == 6){
-							(arg->newgrid_ptr)[j][k]=1;
-						}
-						else{
-							(arg->newgrid_ptr)[j][k]=0;
-						}
-					}
+					//printf("Finalizado\n");
 				}
+			#pragma omp single
+				{
+				print_2grids(arg.grid_ptr, arg.newgrid_ptr);
+				}
+			#pragma omp barrier 
+			#pragma omp single
+				{
+			int** aux = arg.grid_ptr;
+			arg.grid_ptr = arg.newgrid_ptr;
+			arg.newgrid_ptr = aux;
+				}
+			#pragma omp barrier 
 		}
-		//pthread_barrier_wait(&barrier);
-		int** aux = arg->grid_ptr;
-		arg->grid_ptr = arg->newgrid_ptr;
-		arg->newgrid_ptr = aux;
-		print_2grids(arg->grid_ptr, arg->newgrid_ptr);
-		//pthread_barrier_wait(&barrier);
-		
-		
-		//pthread_barrier_wait(&barrier);
-		// thread helper atualiza os grids
-		// pthread_barrier_wait(&barrier);
-		// recomeca com os grids atualizados
-		if(arg->i == 0){
-			print_2grids(arg->grid_ptr, arg->newgrid_ptr);
-		}
-
-		usleep(80000);
+		alive_count += getAlive(arg.grid_ptr);
 	}
+	//int* ret = (int*) malloc(sizeof(int));
+	//*ret = alive_count;
+	return alive_count;
 }
 
-void init_args(thread_args* arg, int shift, int** grid_ptr, int** newgrid_ptr, int i){ 
-	arg->shift = shift;
+void init_args(thread_args* arg, int** grid_ptr, int** newgrid_ptr){ 
 	arg->grid_ptr = grid_ptr;
 	arg->newgrid_ptr = newgrid_ptr;
-	arg->i = i;
 }
 
 
 int main(int argc, char** argv){
-	int** grid = (int**) malloc(GRID_SIZE * sizeof(int*));
-	int** newgrid = (int**) malloc(GRID_SIZE * sizeof(int*));
-	int j, shift = 0, i;
+	struct timeval inicio, final2;
+	struct timeval inicio_concorrente, final2_concorrente;
+	int tmili, tmili_concorrente;
+
+	gettimeofday(&inicio, NULL);
 	
 	if(argc > 1){
 		NUM_GEN = atoi(argv[1]);
+	}if(argc > 2){
+		NUM_WORKERS = atoi(argv[2]);
+	}if(argc > 3){
+		GRID_SIZE = atoi(argv[3]);
 	}
+
+	int** grid = (int**) malloc(GRID_SIZE * sizeof(int*));
+	int** newgrid = (int**) malloc(GRID_SIZE * sizeof(int*));
+	
+	int j, shift = 0, i;
 
 	setlocale(LC_CTYPE, "");
 	
@@ -196,7 +181,6 @@ int main(int argc, char** argv){
 		grid[i] = (int*) calloc(GRID_SIZE , sizeof(int));
 		newgrid[i] = (int*) calloc(GRID_SIZE , sizeof(int));
 	}
-
 
 	//GLIDER
 	int lin = 1, col = 1;
@@ -214,26 +198,14 @@ int main(int argc, char** argv){
 	grid[lin+2][col+1] = 1;*/
 
 	
-	print_grid(grid);
-	{
-		//for(j=0;j<NUM_WORKERS;j++){
-			thread_args* arg;
-			arg = (thread_args*)malloc(sizeof(thread_args));
-			init_args(arg, shift, grid, newgrid, j);
-			runGeneration((void*) arg);
-			shift++;
-	    //}
-	}
-    //thread_args* arg;
-	//arg = (thread_args*)malloc(sizeof(thread_args));
-	//init_args(arg, shift, grid, newgrid);
-    //pthread_create(&(tid[NUM_WORKERS]), NULL, thread_helper, (void*) arg);
-    wprintf(L"vivos: %d\n", getAlive(grid, shift));
-	print_grid(grid);
+	thread_args* arg;
+	arg = (thread_args*)malloc(sizeof(thread_args));
+	init_args(arg, grid, newgrid);
+	int soma_total = runGeneration((void*) arg);
+	gettimeofday(&final2_concorrente, NULL);
+	wprintf(L"vivos: %d\n", soma_total);
+	gettimeofday(&final2, NULL);
 
-
+	
 	return 0;
-    
 }
-
-// TODO: o grid nao atualiza direito
