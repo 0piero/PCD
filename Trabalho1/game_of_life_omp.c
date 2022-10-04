@@ -201,6 +201,7 @@ int main(int argc, char** argv){
 	thread_args* arg;
 	arg = (thread_args*)malloc(sizeof(thread_args));
 	init_args(arg, grid, newgrid);
+	gettimeofday(&inicio_concorrente, NULL);
 	int soma_total = runGeneration((void*) arg);
 	gettimeofday(&final2_concorrente, NULL);
 	wprintf(L"vivos: %d\n", soma_total);
