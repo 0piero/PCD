@@ -4,7 +4,7 @@ Nomes:
 	2) Vinicius L. Mello; RA: 140470
 	3) Paulo R. C. Pedro; RA: 147906
 */
-
+// 1465387ms
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -65,12 +65,11 @@ int getAlive(int** grid, int shift){
 void* runGeneration(void* arg1){
 	thread_args* arg = (thread_args*) arg1;
 	int** aux;
-	int nn;
+	int nn, j, k;
 
 	for(int i=0;i<NUM_GEN;i++){
-		int j = (arg->shift)/GRID_SIZE, k = (arg->shift)%GRID_SIZE;
-		for(;j<GRID_SIZE;k=k%GRID_SIZE){
-			for(;k<GRID_SIZE;k+=NUM_WORKERS, j+=k/GRID_SIZE){
+		for(j = (arg->shift)/GRID_SIZE;j<(arg->shift+1)*(GRID_SIZE/NUM_WORKERS);j++){
+			for(k=0;k<GRID_SIZE;k++){
 				nn = getNeighbors(arg->grid_ptr, j, k);
 				if((arg->grid_ptr)[j][k]==1){
 					if(nn==2 || nn==3){
