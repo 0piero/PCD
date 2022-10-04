@@ -188,12 +188,12 @@ int main(int argc, char** argv){
 	grid[lin+2][col+1] = 1;
 	grid[lin+2][col+2] = 1;
 	//R-pentomino
-	/*int lin =10, col = 30;
+	lin =10, col = 30;
 	grid[lin  ][col+1] = 1;
 	grid[lin  ][col+2] = 1;
 	grid[lin+1][col  ] = 1;
 	grid[lin+1][col+1] = 1;
-	grid[lin+2][col+1] = 1;*/
+	grid[lin+2][col+1] = 1;
 
 	gettimeofday(&inicio_concorrente, NULL);
 	for(j=0;j<NUM_WORKERS;j++){
