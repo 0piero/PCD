@@ -134,7 +134,6 @@ int runGeneration(void* arg1){
 		//printf("test\n");
 		for(i=0;i<NUM_GEN;i++){
 			#pragma omp for
-			{
 				for(j=0;j<GRID_SIZE; j++){
 					for(k=0;k<GRID_SIZE;k++){
 						int nn = getNeighbors(arg.grid_ptr, j, k);
@@ -159,7 +158,6 @@ int runGeneration(void* arg1){
 					}
 					//printf("Finalizado\n");
 				}
-			}
 			#pragma omp barrier 
 			#pragma omp single
 			{
