@@ -77,7 +77,7 @@ void print_grid(int** grid_ptr){
 void print_grid_clipped(int** grid_ptr, int tam){
 	if(tam>GRID_SIZE)
 		tam = GRID_SIZE;
-	wprintf(L"    ");
+	wprintf(L"   ");
 	for(int i=0;i<tam;i++){
 		wprintf(L"%d ", i%10);
 	}
