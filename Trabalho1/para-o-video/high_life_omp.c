@@ -75,7 +75,7 @@ void print_grid_clipped(int** grid_ptr, int tam){
 		wprintf(L"%d ", i%10);
 	}
 	for(int i=0;i<tam;i++){
-		wprintf(L"\n%.3d ", i);
+		wprintf(L"\n%.2d ", i);
 		for(int j=0;j<tam;j++){
 			if(grid_ptr[i][j]==1){wprintf(L"%lc ", 0x25A0);}
 			else{wprintf(L"%lc ", 0x25A1);}
