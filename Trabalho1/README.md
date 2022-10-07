@@ -1,8 +1,8 @@
 # Jogo da Vida
 ## Grupo
-Piero A. L. Ribeiro; RA: 148052 -
-Paulo R. C. Pedro; RA: 147906 -
-Vinicius L. Mello; RA: 140470
+Piero A. L. Ribeiro RA: 148052 -
+Paulo R. C. Pedro RA: 147906 -
+Vinicius L. Mello RA: 140470
 ## Vídeo
 https://drive.google.com/file/d/1x9WtnvUzWa7bp6VV1rMW7rzRo8mMRxyJ/view?usp=sharing
 ## Enunciado
