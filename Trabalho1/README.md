@@ -1,6 +1,10 @@
 # Jogo da Vida
-## Links úteis
-https://docs.google.com/document/d/1HIJ6vIDklk29ZWFRc2_HGE5gjkTY6o-BhuFSbycKntw/edit
+## Grupo
+Piero A. L. Ribeiro; RA: 148052
+Paulo R. C. Pedro; RA: 147906
+Vinicius L. Mello; RA: 140470
+## Vídeo
+https://drive.google.com/file/d/1x9WtnvUzWa7bp6VV1rMW7rzRo8mMRxyJ/view?usp=sharing
 ## Enunciado
 Atividade de Programação 1
 Jogo da Vida / HighLife - PThreads e OpenMP
