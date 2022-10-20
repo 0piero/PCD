@@ -17,10 +17,10 @@ OBS: Para provar que a seção crítica no código implementado de fato funciona
 
 Considerando a variável SOMA como global/compartilhada, tem-se o seguinte trecho de código:
 
-{\n
-  int local = SOMA;\n
-  sleep(rand()%2);\n
-  SOMA = local + 1;\n
+{
+  int local = SOMA;
+  sleep(rand()%2);
+  SOMA = local + 1;
 }
 
 ## Atividade 2 - Somatórias, seção crítica e reduções em OpenMP
