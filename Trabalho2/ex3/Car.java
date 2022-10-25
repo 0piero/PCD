@@ -41,20 +41,37 @@ public class Car implements Runnable{
 	if (cartype==REDCAR) {
             if (inFront.getX() - xpos > 100) {
                 xpos += 4;
-                if (xpos >= bridgeXLeft & xposOld < bridgeXLeft) controller.enterLeft();
-                else if (xpos > bridgeXLeft && xpos < bridgeXMid) {if (ypos > bridgeY) ypos -= 2;}
-                else if (xpos >= bridgeXRight2 && xpos < bridgeXRight) {if (ypos < initY[REDCAR]) ypos += 2;}
-		else if (xpos >= bridgeXRight &&  xposOld < bridgeXRight) controller.leaveRight();
+                if (xpos >= bridgeXLeft & xposOld < bridgeXLeft) 
+                    controller.enterLeft();
+                else if (xpos > bridgeXLeft && xpos < bridgeXMid) {
+                    if (ypos > bridgeY) 
+                        ypos -= 20;
+                }
+                else if (xpos >= bridgeXRight2 && xpos < bridgeXRight) {
+                    if (ypos < initY[REDCAR]) 
+                        ypos += 20;
+                }
+		else if (xpos >= bridgeXRight &&  xposOld < bridgeXRight) 
+            controller.leaveRight();
             }
 	} else {
             if (xpos-inFront.getX() > 100) {
                 xpos -= 4;
-                if (xpos <= bridgeXRight && xposOld > bridgeXRight) controller.enterRight();
-                else if (xpos < bridgeXRight && xpos > bridgeXMid) {if (ypos < bridgeY) ypos += 2;}
-                else if (xpos <= bridgeXLeft2 && xpos > bridgeXLeft) {if(ypos > initY[BLUECAR]) ypos -= 2;}
-		else if (xpos <= bridgeXLeft && xposOld > bridgeXLeft) controller.leaveLeft();
+                if (xpos <= bridgeXRight && xposOld > bridgeXRight) 
+                    controller.enterRight();
+                else if (xpos < bridgeXRight && xpos > bridgeXMid) {
+                    if (ypos < bridgeY) 
+                        ypos += 20;
+                }
+                else if (xpos <= bridgeXLeft2 && xpos > bridgeXLeft) {
+                    if(ypos > initY[BLUECAR]) 
+                        ypos -= 20;
+                }
+		else if (xpos <= bridgeXLeft && xposOld > bridgeXLeft) 
+            controller.leaveLeft();
             }
 	}
+    System.out.println(xpos);
     }
 
 
