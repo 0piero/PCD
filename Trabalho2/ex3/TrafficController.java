@@ -1,6 +1,6 @@
 import java.util.concurrent.*;
 
-public static class TrafficController {
+public class TrafficController {
 
     Semaphore sem;
 
@@ -10,10 +10,20 @@ public static class TrafficController {
     }
 
     public void enterLeft() {
-        sem.acquire();
+        try {
+            sem.acquire();
+        }
+        catch (InterruptedException exc) {
+            System.out.println("aqui" + exc);
+        }
     }
     public void enterRight() {
-        sem.acquire();
+        try {
+            sem.acquire();
+        }
+        catch (InterruptedException exc) {
+            System.out.println(exc);
+        }
     }
     public void leaveLeft() {
         sem.release();
