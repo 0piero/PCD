@@ -21,7 +21,7 @@ public class Car implements Runnable{
     int xpos, ypos; 
     Car inFront;
     Image image;
-    TrafficController controller;
+    public static TrafficController controller;
 
     public Car(int cartype,Car inFront, Image image, TrafficController controller) {
 	this.cartype = cartype;
@@ -71,7 +71,7 @@ public class Car implements Runnable{
             controller.leaveLeft();
             }
 	}
-    System.out.println(xpos);
+
     }
 
 
