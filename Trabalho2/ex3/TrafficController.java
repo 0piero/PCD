@@ -2,7 +2,7 @@ import java.util.concurrent.*;
 
 public class TrafficController {
 
-    Semaphore sem;
+    static Semaphore sem;
 
     public TrafficController() 
     {
@@ -14,7 +14,7 @@ public class TrafficController {
             sem.acquire();
         }
         catch (InterruptedException exc) {
-            System.out.println("aqui" + exc);
+            System.out.println("enter left - " + exc);
         }
     }
     public void enterRight() {
@@ -22,7 +22,7 @@ public class TrafficController {
             sem.acquire();
         }
         catch (InterruptedException exc) {
-            System.out.println(exc);
+            System.out.println("enter left - " + exc);
         }
     }
     public void leaveLeft() {
