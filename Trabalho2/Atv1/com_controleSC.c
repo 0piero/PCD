@@ -9,7 +9,8 @@ Nomes:
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
-#define NUM_WORKERS 2
+#include <sys/time.h>
+#define NUM_WORKERS 4
 
 int request = -1, respond = 0, SOMA=0, next=0;
 
@@ -19,14 +20,15 @@ void server(){
 		while(request==-1){}
 		//printf("	SERVER - request recebido\n");
 		respond = request;
-		while(respond!=0){}
+		while(respond !=-1){}
 		request = -1;
 		printf("	SERVER - soma: %d\n", SOMA);
+		respond = rand()%NUM_WORKERS;
 	}
 }
 
 void* client(void* args){
-	int i =  *((int*)args);
+	int i = *((int*)args);
 	next = 0;
 	//printf("CLIENT %d - iniciado\n", i);
 	// non-critical section
@@ -36,10 +38,10 @@ void* client(void* args){
 		request = i;
 		// critical section
 		int local = SOMA;
-		sleep(rand()%2);
+		usleep((rand()%2)*1000);
 		SOMA = local + 1;
-		//printf("	CLIENT %d - mandando pra resposta\n", i);
-		respond = 0;
+		printf("	CLIENT %d - mandando pra resposta\n", i);
+		respond = -1;
 	}
 }
 
