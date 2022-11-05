@@ -12,18 +12,18 @@ Nomes:
 #include <sys/time.h>
 #define NUM_WORKERS 4
 
-int request = -1, respond = 0, SOMA=0, next=0;
+int request = 0, respond = 0, SOMA=0, next=0;
 
 void server(){
 	printf("SERVER - iniciado\n");
 	while(1){
-		while(request==-1){}
-		//printf("	SERVER - request recebido\n");
-		respond = request;
-		while(respond !=-1){}
-		request = -1;
-		printf("	SERVER - soma: %d\n", SOMA);
-		respond = rand()%NUM_WORKERS;
+		while(request==0){} // 					(6)
+
+		respond = request; // 					(7)
+		while(respond !=0){} //					(8)
+		request = 0; // 						(9)
+		printf("	SERVER: %d\n", SOMA);
+		//respond = rand()%NUM_WORKERS;
 	}
 }
 
@@ -31,23 +31,26 @@ void* client(void* args){
 	int i = *((int*)args);
 	next = 0;
 	//printf("CLIENT %d - iniciado\n", i);
-	// non-critical section
 	while(1){
-		while(respond!=i){}
-		//printf("\nCLIENT %d - fazendo request\n", i);
-		request = i;
-		// critical section
+		// non-critical section
+		while(respond!=i){//					(1)
+			request = i;//						(2)
+		}
+		
+		// critical section //					(3)
 		int local = SOMA;
-		usleep((rand()%2)*1000);
+		usleep(rand()%100);
 		SOMA = local + 1;
-		printf("	CLIENT %d - mandando pra resposta\n", i);
-		respond = -1;
+		//
+		
+		printf("	CLIENT %d\n", i); // 		(4)
+		respond = 0; //							(5) 	
 	}
 }
 
 int main(){
 	pthread_t pid[NUM_WORKERS];
-	for(int i=0; i<NUM_WORKERS; i++){
+	for(int i=1; i<NUM_WORKERS+1; i++){
 		int arg = i;
 		next = 1;
 		pthread_create(&(pid[i]), NULL, client, (void*) &arg);
