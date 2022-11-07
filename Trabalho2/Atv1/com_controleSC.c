@@ -10,27 +10,26 @@ Nomes:
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/time.h>
-#define NUM_WORKERS 4
+#define NUM_WORKERS 2
 
-int request = 0, respond = 0, SOMA=0, next=0;
+int request = 0, respond = 0, SOMA=0;
 
 void server(){
 	printf("SERVER - iniciado\n");
 	while(1){
-		while(request==0){} // 					(6)
+		while(request==0){} // 					(5)
 
-		respond = request; // 					(7)
-		while(respond !=0){} //					(8)
-		request = 0; // 						(9)
+		respond = request; // 					(6)
+	
+		while(respond !=0){} //					(7)
+		request = 0; // 						(8)
 		printf("	SERVER: %d\n", SOMA);
-		//respond = rand()%NUM_WORKERS;
 	}
 }
 
 void* client(void* args){
 	int i = *((int*)args);
-	next = 0;
-	//printf("CLIENT %d - iniciado\n", i);
+
 	while(1){
 		// non-critical section
 		while(respond!=i){//					(1)
@@ -41,20 +40,19 @@ void* client(void* args){
 		int local = SOMA;
 		usleep(rand()%100);
 		SOMA = local + 1;
-		//
+		//                 //
 		
-		printf("	CLIENT %d\n", i); // 		(4)
-		respond = 0; //							(5) 	
+		printf("	CLIENT %d\n", i);
+		respond = 0; //							(4) 	
 	}
 }
 
 int main(){
 	pthread_t pid[NUM_WORKERS];
 	for(int i=1; i<NUM_WORKERS+1; i++){
-		int arg = i;
-		next = 1;
-		pthread_create(&(pid[i]), NULL, client, (void*) &arg);
-		while(next==1){}
+		int* arg = (int*) malloc(sizeof(int));
+		*arg = i;
+		pthread_create(&(pid[i]), NULL, client, (void*) arg);
 	}
 
 	server();
