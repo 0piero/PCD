@@ -14,7 +14,8 @@ Nomes:
 #include <sys/time.h>
 int NUM_GEN = 2000;
 int GRID_SIZE = 2048;
-int NUM_WORKERS = 1;
+int NUM_WORKERS = 8;
+int q = 0;
 
 typedef struct {
     int** grid_ptr;
@@ -46,9 +47,9 @@ int getNeighbors(int** grid, int i, int j){
 }
 
 int getAlive(int** grid){
-	int q = 0, i, j;
+	int i, j;
 
-	#pragma omp for private(i, j)	
+	#pragma omp for reduction(+:q)
 		for(i=0; i<GRID_SIZE; i++){
     	    for(j=0; j<GRID_SIZE; j++){
     	    	if(grid[i][j]==1){
@@ -242,7 +243,7 @@ int main(int argc, char** argv){
 	arg = (thread_args*)malloc(sizeof(thread_args));
 	init_args(arg, grid, newgrid);
 	runGeneration((void*) arg);
-	
+	q=0;
 	gettimeofday(&inicio_concorrente, NULL);
 	int soma_total = getAlive(grid);
 	gettimeofday(&final2_concorrente, NULL);
@@ -252,10 +253,10 @@ int main(int argc, char** argv){
 	gettimeofday(&final2, NULL);
 	
 	tmili = (int) (1000 * (final2.tv_sec - inicio.tv_sec) + (final2.tv_usec - inicio.tv_usec) / 1000);
-	tmili_concorrente = (int) (1000 * (final2_concorrente.tv_sec - inicio_concorrente.tv_sec) + (final2_concorrente.tv_usec - inicio_concorrente.tv_usec) / 1000);  
+	tmili_concorrente = (int) (1000000 * (final2_concorrente.tv_sec - inicio_concorrente.tv_sec) + (final2_concorrente.tv_usec - inicio_concorrente.tv_usec));  
 
 	wprintf(L"tempo decorrido: %d milisegundos\n", tmili);
-	wprintf(L"tempo trecho da última contagem: %d milisegundos\n", tmili_concorrente);
+	wprintf(L"tempo trecho da última contagem: %d microssegundos\n", tmili_concorrente);
 	
 	return 0;
 }
