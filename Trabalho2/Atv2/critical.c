@@ -15,7 +15,7 @@ Nomes:
 int NUM_GEN = 2000;
 int GRID_SIZE = 2048;
 int NUM_WORKERS = 1;
-
+int q=0;
 typedef struct {
     int** grid_ptr;
     int** newgrid_ptr;
@@ -45,8 +45,8 @@ int getNeighbors(int** grid, int i, int j){
 	return count;
 }
 
-int getAlive(int** grid){
-	int q = 0, i, j;
+void getAlive(int** grid){
+	int i, j;
 
 	#pragma omp for
 		for(i=0; i<GRID_SIZE; i++){
@@ -57,7 +57,6 @@ int getAlive(int** grid){
     	    	}
     	    }
     	}
-    return q;
 }
 
 void print_grid(int** grid_ptr){
@@ -126,10 +125,10 @@ int simple_count(int** grid_ptr){
 }
 
 
-int runGeneration(void* arg1){
+void runGeneration(void* arg1){
 	thread_args arg = *((thread_args*) arg1);
 	int i, j, k, alive_count=0;
-	#pragma omp parallel num_threads(NUM_WORKERS) private(i, j, k) reduction(+: alive_count)
+	#pragma omp parallel num_threads(NUM_WORKERS) private(i, j, k)
 	{
 		// segfault aq
 		//printf("test\n");
@@ -181,11 +180,10 @@ int runGeneration(void* arg1){
 				}
 			#pragma omp barrier 
 		}
-		alive_count += getAlive(arg.grid_ptr);
+		getAlive(arg.grid_ptr);
 	}
 	//int* ret = (int*) malloc(sizeof(int));
 	//*ret = alive_count;
-	return alive_count;
 }
 
 void init_args(thread_args* arg, int** grid_ptr, int** newgrid_ptr){ 
@@ -244,13 +242,14 @@ int main(int argc, char** argv){
 	init_args(arg, grid, newgrid);
 	runGeneration((void*) arg);
 	
-	int soma_total;
-	gettimeofday(&inicio_concorrente, NULL);
+	int soma_total = q = 0;
 	#pragma omp parallel
 	{
-		soma_total = getAlive(grid);
-	}
+	gettimeofday(&inicio_concorrente, NULL);
+		getAlive(grid);
 	gettimeofday(&final2_concorrente, NULL);
+	}
+	soma_total = q;
 
     wprintf(L"\n...\n");
     wprintf(L"Última geração (%d iterações): %d células vivas\n", NUM_GEN, soma_total);
