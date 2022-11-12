@@ -48,7 +48,7 @@ int getNeighbors(int** grid, int i, int j){
 
 int getAlive(int** grid){
 	int i, j;
-
+	q = 0;
 	#pragma omp for reduction(+:q)
 		for(i=0; i<GRID_SIZE; i++){
     	    for(j=0; j<GRID_SIZE; j++){
