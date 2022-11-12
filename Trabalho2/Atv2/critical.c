@@ -245,7 +245,10 @@ int main(int argc, char** argv){
 	runGeneration((void*) arg);
 	
 	gettimeofday(&inicio_concorrente, NULL);
-	int soma_total = getAlive(grid);
+	#pragma omp parallel
+	{
+		int soma_total = getAlive(grid);
+	}
 	gettimeofday(&final2_concorrente, NULL);
 
     wprintf(L"\n...\n");
