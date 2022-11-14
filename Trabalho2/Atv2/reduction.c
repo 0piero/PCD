@@ -243,10 +243,15 @@ int main(int argc, char** argv){
 	arg = (thread_args*)malloc(sizeof(thread_args));
 	init_args(arg, grid, newgrid);
 	runGeneration((void*) arg);
-	q = 0;
+	
+	int soma_total = 0; q = 0;
 	gettimeofday(&inicio_concorrente, NULL);
-	int soma_total = getAlive(grid);
+	#pragma omp parallel num_threads(NUM_WORKERS)
+	{
+		getAlive(grid);
+	}
 	gettimeofday(&final2_concorrente, NULL);
+	soma_total = q;
 
     wprintf(L"\n...\n");
     wprintf(L"Última geração (%d iterações): %d células vivas\n", NUM_GEN, soma_total);
