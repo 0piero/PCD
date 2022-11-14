@@ -259,10 +259,10 @@ int main(int argc, char** argv){
 	gettimeofday(&final2, NULL);
 	
 	tmili = (int) (1000 * (final2.tv_sec - inicio.tv_sec) + (final2.tv_usec - inicio.tv_usec) / 1000);
-	tmili_concorrente = (int) (1000 * (final2_concorrente.tv_sec - inicio_concorrente.tv_sec) + (final2_concorrente.tv_usec - inicio_concorrente.tv_usec) / 1000);  
+	tmili_concorrente = (int) (1000000 * (final2_concorrente.tv_sec - inicio_concorrente.tv_sec) + (final2_concorrente.tv_usec - inicio_concorrente.tv_usec));  
 
 	wprintf(L"tempo decorrido: %d milisegundos\n", tmili);
-	wprintf(L"tempo trecho da última contagem: %d milisegundos\n", tmili_concorrente);
+	wprintf(L"tempo trecho da última contagem: %d microssegundos\n", tmili_concorrente);
 	
 	return 0;
 }
