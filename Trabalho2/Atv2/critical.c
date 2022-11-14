@@ -46,14 +46,16 @@ int getNeighbors(int** grid, int i, int j){
 }
 
 void getAlive(int** grid){
-	int q = 0, i, j;
+	int i, j;
 
 	#pragma omp for
 		for(i=0; i<GRID_SIZE; i++){
     	    for(j=0; j<GRID_SIZE; j++){
     	    	if(grid[i][j]==1){
     	    		#pragma omp critical
-    	    		q++;
+    	    		{
+    	    			q++;
+    	    		}
     	    	}
     	    }
     	}
@@ -173,11 +175,12 @@ void runGeneration(void* arg1){
 			}
 			#pragma omp barrier 
 			#pragma omp single
-				{
-			int** aux = arg.grid_ptr;
-			arg.grid_ptr = arg.newgrid_ptr;
-			arg.newgrid_ptr = aux;
-				}
+			{
+				int** aux = arg.grid_ptr;
+				arg.grid_ptr = arg.newgrid_ptr;
+				arg.newgrid_ptr = aux;
+				q=0;
+			}
 			#pragma omp barrier 
 		}
 		getAlive(arg.grid_ptr);
@@ -242,7 +245,7 @@ int main(int argc, char** argv){
 	init_args(arg, grid, newgrid);
 	runGeneration((void*) arg);
 	
-	int soma_total = q = 0;
+	int soma_total = 0; q = 0;
 	gettimeofday(&inicio_concorrente, NULL);
 	#pragma omp parallel num_threads(NUM_WORKERS)
 	{
