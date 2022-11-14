@@ -48,7 +48,6 @@ int getNeighbors(int** grid, int i, int j){
 
 int getAlive(int** grid){
 	int i, j;
-	q = 0;
 	#pragma omp for reduction(+:q)
 		for(i=0; i<GRID_SIZE; i++){
     	    for(j=0; j<GRID_SIZE; j++){
@@ -244,8 +243,12 @@ int main(int argc, char** argv){
 	init_args(arg, grid, newgrid);
 	runGeneration((void*) arg);
 	gettimeofday(&inicio_concorrente, NULL);
-	int soma_total = getAlive(grid);
+	#pragma omp parallel num_threads(NUM_WORKERS)
+	{
+		getAlive(grid);
+	}
 	gettimeofday(&final2_concorrente, NULL);
+	soma_total = q;
 
     wprintf(L"\n...\n");
     wprintf(L"Última geração (%d iterações): %d células vivas\n", NUM_GEN, soma_total);
