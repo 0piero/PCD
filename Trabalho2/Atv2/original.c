@@ -47,16 +47,16 @@ int getNeighbors(int** grid, int i, int j){
 }
 
 int getAlive(int** grid){
-	int i, j;
-	#pragma omp for reduction(+:q)
+	int i, j, count=0;
+	#pragma omp for
 		for(i=0; i<GRID_SIZE; i++){
     	    for(j=0; j<GRID_SIZE; j++){
     	    	if(grid[i][j]==1){
-    	    		q++;
+    	    		count++;
     	    	}
     	    }
     	}
-    return q;
+    return count;
 }
 
 void print_grid(int** grid_ptr){
@@ -127,14 +127,15 @@ int simple_count(int** grid_ptr){
 
 int runGeneration(void* arg1){
 	thread_args arg = *((thread_args*) arg1);
-	int i, j, k, alive_count=0;
-	#pragma omp parallel num_threads(NUM_WORKERS) private(i, j, k) reduction(+: alive_count)
+	int i, j, k, alive_count=0; int* ret = (int*) malloc(NUM_WORKERS*sizeof(int));
+	#pragma omp parallel num_threads(NUM_WORKERS) private(i, j, k) firstprivate(alive_count)
 	{
 		// segfault aq
 		//printf("test\n");
 		//wprintf(L"%d\n", (arg.grid_ptr)[0][0]);
 		//printf("test\n");
 		for(i=0;i<NUM_GEN;i++){
+			q=0;
 			#pragma omp for
 				for(j=0;j<GRID_SIZE; j++){
 					for(k=0;k<GRID_SIZE;k++){
@@ -181,10 +182,19 @@ int runGeneration(void* arg1){
 			#pragma omp barrier 
 		}
 		alive_count += getAlive(arg.grid_ptr);
+		#pragma omp for
+			for(int i=0; i<NUM_WORKERS;i++){
+				ret[i] = alive_count;
+			}
 	}
 	//int* ret = (int*) malloc(sizeof(int));
 	//*ret = alive_count;
-	return alive_count;
+	int sum=0;
+	for(int i=0;i<NUM_WORKERS;i++){
+		sum+=ret[i];
+	}
+	free(ret);
+	return sum;
 }
 
 void init_args(thread_args* arg, int** grid_ptr, int** newgrid_ptr){ 
@@ -242,14 +252,24 @@ int main(int argc, char** argv){
 	arg = (thread_args*)malloc(sizeof(thread_args));
 	init_args(arg, grid, newgrid);
 	runGeneration((void*) arg);
+
+	int soma_total = 0;
+	int* ret = (int*) malloc(NUM_WORKERS*sizeof(int));
+/*----------------------------------------------*/
 	gettimeofday(&inicio_concorrente, NULL);
 	#pragma omp parallel num_threads(NUM_WORKERS)
 	{
-		getAlive(grid);
+		int alive_count = getAlive(grid);
+		#pragma omp for
+			for(i=0;i<NUM_WORKERS;i++){
+				ret[i] = alive_count;
+			}
+	}
+	for(i=0;i<NUM_WORKERS;i++){
+		soma_total += ret[i];
 	}
 	gettimeofday(&final2_concorrente, NULL);
-	soma_total = q;
-
+/*----------------------------------------------*/
     wprintf(L"\n...\n");
     wprintf(L"Última geração (%d iterações): %d células vivas\n", NUM_GEN, soma_total);
 	gettimeofday(&final2, NULL);
