@@ -11,6 +11,8 @@ Nomes:
 #include <wchar.h>
 #include <locale.h>
 #include <sys/time.h>
+#include <mpi.h>
+
 int NUM_GEN = 2000;
 int GRID_SIZE = 2048;
 int NUM_WORKERS = 1;
@@ -56,6 +58,18 @@ int getAlive(int** grid){
     return q;
 }
 
+int getAlive_sector(int** grid, int begin, int end){
+	int q = 0, i, j;
+
+	//#pragma omp for private(i, j)	
+	for(i=begin; i<=end; i++){
+    	for(j=0; j<GRID_SIZE; j++){
+    	   	if(grid[i][j]==1){q++;}
+    	}
+    }
+    return q;
+}
+
 void print_grid(int** grid_ptr){
 	for(int i=0;i<GRID_SIZE;i++){
 		for(int j=0;j<GRID_SIZE;j++){
@@ -92,12 +106,44 @@ void print_2grids(int** grid_ptr, int** grid_ptr_new){
 	}
 }
 
+int Begin_Function(int myrank, int nProc){
+  if(myrank==0){
+    return 0;
+  }
+  else{
+    return (myrank) * GRID_SIZE/nProc + 1;
+  }
+}
+
+int End_Function(int myrank, int nProc){
+	if(myrank == (nProc - 1)){
+		return GRID_SIZE-1;
+	}
+	else{
+		return (myrank+1) * GRID_SIZE / nProc;
+	}
+}
 
 int runGeneration(void* arg1){
+  int ierr, myrank, nProc;
+  MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nProc);
+	MPI_Status status[nProc];
+  int sendArrayPreviousProc[GRID_SIZE], sendArrayNextProc[GRID_SIZE];
+	int receiveArrayPreviousProc[GRID_SIZE], receiveArrayNextProc[GRID_SIZE];
+	
 	thread_args arg = *((thread_args*) arg1);
-	int i, j, k, alive_count=0;
-	for(i=0;i<NUM_GEN;i++){
-		for(j=0;j<GRID_SIZE; j++){
+	
+  int i, j, k, a, alive_count=0, receive_alive_count = 0;
+	int begin, end;
+  begin = Begin_Function(myrank, nProc);
+  end = End_Function(myrank, nProc);
+  for(i=0;i<NUM_GEN;i++){
+		for(a = 0; a < GRID_SIZE;a++){
+				(arg.grid_ptr)[(end+1)%GRID_SIZE][a] = receiveArrayNextProc[a];
+				(arg.grid_ptr)[(begin-1+GRID_SIZE)%GRID_SIZE][a] = receiveArrayPreviousProc[a];
+		}
+		for(j=begin;j<=end; j++){
 			for(k=0;k<GRID_SIZE;k++){
 				int nn = getNeighbors(arg.grid_ptr, j, k);
 				//printf("Cheguei aqui agora");
@@ -124,8 +170,22 @@ int runGeneration(void* arg1){
 			int** aux = arg.grid_ptr;
 			arg.grid_ptr = arg.newgrid_ptr;
 			arg.newgrid_ptr = aux; 
-			printf("Geracao %d = %d\n", i, getAlive(arg.grid_ptr));
-		}
+			alive_count = getAlive_sector(arg.grid_ptr,begin, end);
+      ierr = MPI_Barrier(MPI_COMM_WORLD);
+			ierr = MPI_Reduce(&alive_count, &receive_alive_count, 1, MPI_INTEGER, MPI_SUM, 0, MPI_COMM_WORLD);
+			for(a = 0; a < GRID_SIZE;a++){
+				sendArrayNextProc[a] = (arg.grid_ptr)[end][a];
+				sendArrayPreviousProc[a] = (arg.grid_ptr)[begin][a];
+			}
+			ierr = MPI_Sendrecv(&sendArrayPreviousProc, GRID_SIZE, MPI_INTEGER, ((myrank - 1+nProc)%nProc), 10, &receiveArrayPreviousProc, GRID_SIZE, MPI_INTEGER, ((myrank - 1+nProc)%nProc), 10, MPI_COMM_WORLD,status);
+			ierr = MPI_Sendrecv(&sendArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 20, &receiveArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 20, MPI_COMM_WORLD, status);
+			ierr = MPI_Barrier(MPI_COMM_WORLD);
+			if(myrank == 0){
+				printf("Geracao %d = %d\n", i, receive_alive_count);
+			}
+      ierr = MPI_Barrier(MPI_COMM_WORLD);
+    }
+    //printf("myrank = %d, nProc = %d begin = %d, end = %d\n",myrank,nProc, begin, end);
 		alive_count += getAlive(arg.grid_ptr);
 	return alive_count;
 }
@@ -137,19 +197,20 @@ void init_args(thread_args* arg, int** grid_ptr, int** newgrid_ptr){
 
 
 int main(int argc, char** argv){
+
 	struct timeval inicio, final2;
 	struct timeval inicio_concorrente, final2_concorrente;
 	int tmili, tmili_concorrente;
 
 	gettimeofday(&inicio, NULL);
 	
-	if(argc > 1){
+	/*if(argc > 1){
 		NUM_GEN = atoi(argv[1]);
 	}if(argc > 2){
 		NUM_WORKERS = atoi(argv[2]);
 	}if(argc > 3){
 		GRID_SIZE = atoi(argv[3]);
-	}
+	}*/
 
 	int** grid = (int**) malloc(GRID_SIZE * sizeof(int*));
 	int** newgrid = (int**) malloc(GRID_SIZE * sizeof(int*));
@@ -178,12 +239,18 @@ int main(int argc, char** argv){
 	grid[lin+1][col+1] = 1;
 	grid[lin+2][col+1] = 1;
 
-	
+	int ierr;
+	MPI_Init(&argc, &argv);
+
 	thread_args* arg;
 	arg = (thread_args*)malloc(sizeof(thread_args));
 	init_args(arg, grid, newgrid);
 	gettimeofday(&inicio_concorrente, NULL);
 	int soma_total = runGeneration((void*) arg);
+	
+	ierr = MPI_Finalize();
+
+
 	gettimeofday(&final2_concorrente, NULL);
 	wprintf(L"vivos: %d\n", soma_total);
 	gettimeofday(&final2, NULL);
