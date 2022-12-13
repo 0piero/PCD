@@ -282,3 +282,10 @@ int main(int argc, char** argv){
 
 	return 0;
 }
+
+
+//Cores : tempo
+//1: 322926
+//2: 163083
+//3: 111913 
+//4:  90838
