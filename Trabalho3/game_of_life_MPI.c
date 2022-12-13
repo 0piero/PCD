@@ -6,12 +6,12 @@ Nomes:
 */
 
 #include <stdio.h>
-#include <stdlib.h>
+#include <stdlib.h>	
 #include <unistd.h>
 #include <wchar.h>
 #include <locale.h>
 #include <sys/time.h>
-#include <mpi.h>
+#include "mpi.h"
 
 int NUM_GEN = 2000;
 int GRID_SIZE = 2048;
@@ -71,8 +71,14 @@ int getAlive_sector(int** grid, int begin, int end){
 }
 
 void print_grid(int** grid_ptr){
-	for(int i=0;i<GRID_SIZE;i++){
-		for(int j=0;j<GRID_SIZE;j++){
+	wprintf(L"   ");
+	for(int i=0;i<50;i++){
+		wprintf(L"%d ", i%10);
+	}
+	wprintf(L"\n");
+	for(int i=0;i<50;i++){
+		wprintf(L"%.2d ", i);
+		for(int j=0;j<50;j++){
 			if(grid_ptr[i][j]==1){wprintf(L"%lc ", 0x25A0);}
 			else{wprintf(L"%lc ", 0x25A1);}
 		}
@@ -124,9 +130,8 @@ int End_Function(int myrank, int nProc){
 	}
 }
 
-int runGeneration(void* arg1){
-  int ierr, myrank, nProc;
-  MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+int runGeneration(void* arg1, int myrank){
+  int ierr, nProc;
   MPI_Comm_size(MPI_COMM_WORLD, &nProc);
 	MPI_Status status[nProc];
   int sendArrayPreviousProc[GRID_SIZE], sendArrayNextProc[GRID_SIZE];
@@ -177,17 +182,27 @@ int runGeneration(void* arg1){
 				sendArrayNextProc[a] = (arg.grid_ptr)[end][a];
 				sendArrayPreviousProc[a] = (arg.grid_ptr)[begin][a];
 			}
+			if(myrank == (nProc-1)){
 			ierr = MPI_Sendrecv(&sendArrayPreviousProc, GRID_SIZE, MPI_INTEGER, ((myrank - 1+nProc)%nProc), 10, &receiveArrayPreviousProc, GRID_SIZE, MPI_INTEGER, ((myrank - 1+nProc)%nProc), 10, MPI_COMM_WORLD,status);
-			ierr = MPI_Sendrecv(&sendArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 20, &receiveArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 20, MPI_COMM_WORLD, status);
+			ierr = MPI_Sendrecv(&sendArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 10, &receiveArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 10, MPI_COMM_WORLD, status);
+			}
+			else{
+				ierr = MPI_Sendrecv(&sendArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 10, &receiveArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 10, MPI_COMM_WORLD, status);
+				ierr = MPI_Sendrecv(&sendArrayPreviousProc, GRID_SIZE, MPI_INTEGER, ((myrank - 1+nProc)%nProc), 10, &receiveArrayPreviousProc, GRID_SIZE, MPI_INTEGER, ((myrank - 1+nProc)%nProc), 10, MPI_COMM_WORLD,status);
+
+			}
 			ierr = MPI_Barrier(MPI_COMM_WORLD);
 			if(myrank == 0){
-				printf("Geracao %d = %d\n", i, receive_alive_count);
+				if(i < 5){
+					wprintf(L"Geracao %d = %d\n", i, receive_alive_count);
+					print_grid(arg.grid_ptr);
+				}
 			}
       ierr = MPI_Barrier(MPI_COMM_WORLD);
     }
     //printf("myrank = %d, nProc = %d begin = %d, end = %d\n",myrank,nProc, begin, end);
-		alive_count += getAlive(arg.grid_ptr);
-	return alive_count;
+		//alive_count += getAlive(arg.grid_ptr);
+	return receive_alive_count;
 }
 
 void init_args(thread_args* arg, int** grid_ptr, int** newgrid_ptr){ 
@@ -223,43 +238,47 @@ int main(int argc, char** argv){
 		grid[i] = (int*) calloc(GRID_SIZE , sizeof(int));
 		newgrid[i] = (int*) calloc(GRID_SIZE , sizeof(int));
 	}
-
-	//GLIDER
-	int lin = 1, col = 1;
-	grid[lin  ][col+1] = 1;
-	grid[lin+1][col+2] = 1;
-	grid[lin+2][col  ] = 1;
-	grid[lin+2][col+1] = 1;
-	grid[lin+2][col+2] = 1;
-	//R-pentomino
-	lin =10, col = 30;
-	grid[lin  ][col+1] = 1;
-	grid[lin  ][col+2] = 1;
-	grid[lin+1][col  ] = 1;
-	grid[lin+1][col+1] = 1;
-	grid[lin+2][col+1] = 1;
-
-	int ierr;
 	MPI_Init(&argc, &argv);
-
+	int myrank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+	if(myrank == 0){
+		//GLIDER
+		int lin = 1, col = 1;
+		grid[lin  ][col+1] = 1;
+		grid[lin+1][col+2] = 1;
+		grid[lin+2][col  ] = 1;
+		grid[lin+2][col+1] = 1;
+		grid[lin+2][col+2] = 1;
+		//R-pentomino
+		lin =10, col = 30;
+		grid[lin  ][col+1] = 1;
+		grid[lin  ][col+2] = 1;
+		grid[lin+1][col  ] = 1;
+		grid[lin+1][col+1] = 1;
+		grid[lin+2][col+1] = 1;
+	}
+	int ierr;
+	
 	thread_args* arg;
 	arg = (thread_args*)malloc(sizeof(thread_args));
 	init_args(arg, grid, newgrid);
 	gettimeofday(&inicio_concorrente, NULL);
-	int soma_total = runGeneration((void*) arg);
+	int soma_total = runGeneration((void*) arg, myrank);
 	
+
+	if(myrank==0){
+		gettimeofday(&final2_concorrente, NULL);
+		wprintf(L"vivos: %d\n", soma_total);
+		gettimeofday(&final2, NULL);
+		
+		tmili = (int) (1000 * (final2.tv_sec - inicio.tv_sec) + (final2.tv_usec - inicio.tv_usec) / 1000);
+		tmili_concorrente = (int) (1000 * (final2_concorrente.tv_sec - inicio_concorrente.tv_sec) + (final2_concorrente.tv_usec - inicio_concorrente.tv_usec) / 1000);  
+
+		wprintf(L"tempo decorrido: %d milisegundos\n", tmili);
+		wprintf(L"tempo trecho concorrente: %d milisegundos\n", tmili_concorrente);
+	}
+
 	ierr = MPI_Finalize();
 
-
-	gettimeofday(&final2_concorrente, NULL);
-	wprintf(L"vivos: %d\n", soma_total);
-	gettimeofday(&final2, NULL);
-	
-	tmili = (int) (1000 * (final2.tv_sec - inicio.tv_sec) + (final2.tv_usec - inicio.tv_usec) / 1000);
-	tmili_concorrente = (int) (1000 * (final2_concorrente.tv_sec - inicio_concorrente.tv_sec) + (final2_concorrente.tv_usec - inicio_concorrente.tv_usec) / 1000);  
-
-	wprintf(L"tempo decorrido: %d milisegundos\n", tmili);
-	wprintf(L"tempo trecho concorrente: %d milisegundos\n", tmili_concorrente);
-	
 	return 0;
 }
