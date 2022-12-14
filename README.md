@@ -1,3 +1,3 @@
 # PCD
 
-"mpicc -show" e pegar o mip.h na pasta include
+"mpicc -show" e pegar o mpi.h na pasta include
