@@ -46,18 +46,6 @@ int getNeighbors(int** grid, int i, int j){
 	return count;
 }
 
-int getAlive(int** grid){
-	int q = 0, i, j;
-
-	//#pragma omp for private(i, j)	
-	for(i=0; i<GRID_SIZE; i++){
-    	for(j=0; j<GRID_SIZE; j++){
-    	   	if(grid[i][j]==1){q++;}
-    	}
-    }
-    return q;
-}
-
 int getAlive_sector(int** grid, int begin, int end){
 	int q = 0, i, j;
 
@@ -86,31 +74,7 @@ void print_grid(int** grid_ptr){
 	}
 }
 
-void print_2grids(int** grid_ptr, int** grid_ptr_new){
-	wprintf(L"    ");
-	for(int i=0;i<GRID_SIZE;i++){
-		wprintf(L"%d ", i%10);
-	}
-	wprintf(L"   ");
-	for(int i=0;i<GRID_SIZE;i++){
-		wprintf(L"%d ", i%10);
-	}
-	wprintf(L"\n");
-	for(int i=0;i<GRID_SIZE;i++){
-		wprintf(L"%.3d ", i);
-		for(int j=0;j<GRID_SIZE;j++){
-			if(grid_ptr[i][j]==1){wprintf(L"%lc ", 0x25A0);}
-			else{wprintf(L"%lc ", 0x25A1);}
-			//printf("%c", grid_ptr[i][j]);
-		}
-		wprintf(L"   ", 0x25A1);
-		for(int j=0;j<GRID_SIZE;j++){
-			if(grid_ptr_new[i][j]==1){wprintf(L"%lc ", 0x25A0);}
-			else{wprintf(L"%lc ", 0x25A1);}
-		}
-		wprintf(L"\n");
-	}
-}
+
 
 int Begin_Function(int myrank, int nProc){
   if(myrank==0){
@@ -159,7 +123,6 @@ int runGeneration(void* arg1, int myrank){
 		for(j=begin;j<=end; j++){
 			for(k=0;k<GRID_SIZE;k++){
 				int nn = getNeighbors(arg.grid_ptr, j, k);
-				//printf("Cheguei aqui agora");
 				if((arg.grid_ptr)[j][k]==1){
 					if(nn==2 || nn==3){
 						(arg.newgrid_ptr)[j][k]=1;
@@ -176,9 +139,7 @@ int runGeneration(void* arg1, int myrank){
 						(arg.newgrid_ptr)[j][k]=0;
 						}
 					}
-					//printf("j = %d, k = %d\n",j,k);
 				}
-					//printf("Finalizado\n");
 			} 
 			int** aux = arg.grid_ptr;
 			arg.grid_ptr = arg.newgrid_ptr;
@@ -208,8 +169,6 @@ int runGeneration(void* arg1, int myrank){
 			}
       ierr = MPI_Barrier(MPI_COMM_WORLD);
     }
-    //printf("myrank = %d, nProc = %d begin = %d, end = %d\n",myrank,nProc, begin, end);
-		//alive_count += getAlive(arg.grid_ptr);
 	return receive_alive_count;
 }
 
@@ -226,14 +185,6 @@ int main(int argc, char** argv){
 	int tmili, tmili_concorrente;
 
 	gettimeofday(&inicio, NULL);
-	
-	/*if(argc > 1){
-		NUM_GEN = atoi(argv[1]);
-	}if(argc > 2){
-		NUM_WORKERS = atoi(argv[2]);
-	}if(argc > 3){
-		GRID_SIZE = atoi(argv[3]);
-	}*/
 
 	int** grid = (int**) malloc(GRID_SIZE * sizeof(int*));
 	int** newgrid = (int**) malloc(GRID_SIZE * sizeof(int*));
