@@ -182,14 +182,16 @@ int runGeneration(void* arg1, int myrank){
 				sendArrayNextProc[a] = (arg.grid_ptr)[end][a];
 				sendArrayPreviousProc[a] = (arg.grid_ptr)[begin][a];
 			}
-			if(myrank == (nProc-1)){
-			ierr = MPI_Sendrecv(&sendArrayPreviousProc, GRID_SIZE, MPI_INTEGER, ((myrank - 1+nProc)%nProc), 10, &receiveArrayPreviousProc, GRID_SIZE, MPI_INTEGER, ((myrank - 1+nProc)%nProc), 10, MPI_COMM_WORLD,status);
-			ierr = MPI_Sendrecv(&sendArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 10, &receiveArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 10, MPI_COMM_WORLD, status);
-			}
-			else{
-				ierr = MPI_Sendrecv(&sendArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 10, &receiveArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 10, MPI_COMM_WORLD, status);
+			if(nProc > 1){
+				if(myrank == (nProc-1)){
 				ierr = MPI_Sendrecv(&sendArrayPreviousProc, GRID_SIZE, MPI_INTEGER, ((myrank - 1+nProc)%nProc), 10, &receiveArrayPreviousProc, GRID_SIZE, MPI_INTEGER, ((myrank - 1+nProc)%nProc), 10, MPI_COMM_WORLD,status);
+				ierr = MPI_Sendrecv(&sendArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 10, &receiveArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 10, MPI_COMM_WORLD, status);
+				}
+				else{
+					ierr = MPI_Sendrecv(&sendArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 10, &receiveArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 10, MPI_COMM_WORLD, status);
+					ierr = MPI_Sendrecv(&sendArrayPreviousProc, GRID_SIZE, MPI_INTEGER, ((myrank - 1+nProc)%nProc), 10, &receiveArrayPreviousProc, GRID_SIZE, MPI_INTEGER, ((myrank - 1+nProc)%nProc), 10, MPI_COMM_WORLD,status);
 
+				}
 			}
 			ierr = MPI_Barrier(MPI_COMM_WORLD);
 			if(myrank == 0){
