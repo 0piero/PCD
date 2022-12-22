@@ -1,5 +1,3 @@
-%%writefile hello-mpi.c
-
 /*
 Nomes:
 	1) Piero A. L. Ribeiro; RA: 148052
