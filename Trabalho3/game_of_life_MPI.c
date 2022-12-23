@@ -108,17 +108,9 @@ int runGeneration(void* arg1, int myrank){
   	begin = Begin_Function(myrank, nProc);
   	end = End_Function(myrank, nProc);
   	for(i=0;i<NUM_GEN;i++){
-		if(nProc != 1){
-			for(a = 0; a < GRID_SIZE;a++){
-				(arg.grid_ptr)[(end+1)%GRID_SIZE][a] = receiveArrayNextProc[a];
-				(arg.grid_ptr)[(begin-1+GRID_SIZE)%GRID_SIZE][a] = receiveArrayPreviousProc[a];
-			}
-		}
-		else{
-			for(a = 0; a < GRID_SIZE;a++){
-				(arg.grid_ptr)[(end+1)%GRID_SIZE][a] = receiveArrayPreviousProc[a];
-				(arg.grid_ptr)[(begin-1+GRID_SIZE)%GRID_SIZE][a] = receiveArrayNextProc[a];
-			}
+		for(a = 0; a < GRID_SIZE;a++){
+			(arg.grid_ptr)[(end+1)%GRID_SIZE][a] = receiveArrayPreviousProc[a];
+			(arg.grid_ptr)[(begin-1+GRID_SIZE)%GRID_SIZE][a] = receiveArrayNextProc[a];
 		}
 		for(j=begin;j<=end; j++){
 			for(k=0;k<GRID_SIZE;k++){
