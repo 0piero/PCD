@@ -77,12 +77,12 @@ void print_grid(int** grid_ptr){
 
 
 int Begin_Function(int myrank, int nProc){
-  	if(myrank==0){
-    		return 0;
-  	}
-  	else{
-    		return (myrank) * GRID_SIZE/nProc + 1;
-  	}
+  if(myrank==0){
+    return 0;
+  }
+  else{
+    return (myrank) * GRID_SIZE/nProc + 1;
+  }
 }
 
 int End_Function(int myrank, int nProc){
@@ -96,7 +96,7 @@ int End_Function(int myrank, int nProc){
 
 int runGeneration(void* arg1, int myrank){
   	int ierr, nProc;
- 	MPI_Comm_size(MPI_COMM_WORLD, &nProc);
+  	MPI_Comm_size(MPI_COMM_WORLD, &nProc);
 	MPI_Status status[nProc];
   	int sendArrayPreviousProc[GRID_SIZE], sendArrayNextProc[GRID_SIZE];
 	int receiveArrayPreviousProc[GRID_SIZE], receiveArrayNextProc[GRID_SIZE];
@@ -105,62 +105,63 @@ int runGeneration(void* arg1, int myrank){
 	
   	int i, j, k, a, alive_count=0, receive_alive_count = 0;
 	int begin, end;
- 	begin = Begin_Function(myrank, nProc);
+  	begin = Begin_Function(myrank, nProc);
   	end = End_Function(myrank, nProc);
-  for(i=0;i<NUM_GEN;i++){
-	if(nProc != 1){
-		for(a = 0; a < GRID_SIZE;a++){
-			(arg.grid_ptr)[(end+1)%GRID_SIZE][a] = receiveArrayNextProc[a];
-			(arg.grid_ptr)[(begin-1+GRID_SIZE)%GRID_SIZE][a] = receiveArrayPreviousProc[a];
-		}
-	}
-	else{
-		for(a = 0; a < GRID_SIZE;a++){
-			(arg.grid_ptr)[(end+1)%GRID_SIZE][a] = receiveArrayPreviousProc[a];
-			(arg.grid_ptr)[(begin-1+GRID_SIZE)%GRID_SIZE][a] = receiveArrayNextProc[a];
-		}
-	}
-	for(j=begin;j<=end; j++){
-		for(k=0;k<GRID_SIZE;k++){
-			int nn = getNeighbors(arg.grid_ptr, j, k);
-			if((arg.grid_ptr)[j][k]==1){
-				if(nn==2 || nn==3){
-					(arg.newgrid_ptr)[j][k]=1;
-				}
-				else{
-					(arg.newgrid_ptr)[j][k]=0;
-				}
+  	for(i=0;i<NUM_GEN;i++){
+		if(nProc != 1){
+			for(a = 0; a < GRID_SIZE;a++){
+				(arg.grid_ptr)[(end+1)%GRID_SIZE][a] = receiveArrayNextProc[a];
+				(arg.grid_ptr)[(begin-1+GRID_SIZE)%GRID_SIZE][a] = receiveArrayPreviousProc[a];
 			}
-			else{
-				if(nn==3){
-					(arg.newgrid_ptr)[j][k]=1;
-				}
-				else{
-					(arg.newgrid_ptr)[j][k]=0;
+		}
+		else{
+			for(a = 0; a < GRID_SIZE;a++){
+				(arg.grid_ptr)[(end+1)%GRID_SIZE][a] = receiveArrayPreviousProc[a];
+				(arg.grid_ptr)[(begin-1+GRID_SIZE)%GRID_SIZE][a] = receiveArrayNextProc[a];
+			}
+		}
+		for(j=begin;j<=end; j++){
+			for(k=0;k<GRID_SIZE;k++){
+				int nn = getNeighbors(arg.grid_ptr, j, k);
+				if((arg.grid_ptr)[j][k]==1){
+					if(nn==2 || nn==3){
+						(arg.newgrid_ptr)[j][k]=1;
+					}
+					else{
+						(arg.newgrid_ptr)[j][k]=0;
 					}
 				}
+				else{
+					if(nn==3){
+						(arg.newgrid_ptr)[j][k]=1;
+					}
+					else{
+						(arg.newgrid_ptr)[j][k]=0;
+						}
+					}
+				}
+			} 
+			int** aux = arg.grid_ptr;
+			arg.grid_ptr = arg.newgrid_ptr;
+			arg.newgrid_ptr = aux; 
+			alive_count = getAlive_sector(arg.grid_ptr,begin, end);
+      			ierr = MPI_Barrier(MPI_COMM_WORLD);
+			ierr = MPI_Reduce(&alive_count, &receive_alive_count, 1, MPI_INTEGER, MPI_SUM, 0, MPI_COMM_WORLD);
+			for(a = 0; a < GRID_SIZE;a++){
+				sendArrayNextProc[a] = (arg.grid_ptr)[end][a];
+				sendArrayPreviousProc[a] = (arg.grid_ptr)[begin][a];
 			}
-		} 
-		int** aux = arg.grid_ptr;
-		arg.grid_ptr = arg.newgrid_ptr;
-		arg.newgrid_ptr = aux; 
-		alive_count = getAlive_sector(arg.grid_ptr,begin, end);
-      		ierr = MPI_Barrier(MPI_COMM_WORLD);
-		ierr = MPI_Reduce(&alive_count, &receive_alive_count, 1, MPI_INTEGER, MPI_SUM, 0, MPI_COMM_WORLD);
-		for(a = 0; a < GRID_SIZE;a++){
-			sendArrayNextProc[a] = (arg.grid_ptr)[end][a];
-			sendArrayPreviousProc[a] = (arg.grid_ptr)[begin][a];
-		}	
-		ierr = MPI_Sendrecv(&sendArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 10, &receiveArrayPreviousProc, GRID_SIZE, MPI_INTEGER, ((myrank - 1)%nProc), 10, MPI_COMM_WORLD, status);
-		ierr = MPI_Sendrecv(&sendArrayPreviousProc, GRID_SIZE, MPI_INTEGER, ((myrank - 1+nProc)%nProc), 20, &receiveArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1+nProc)%nProc), 20, MPI_COMM_WORLD,status);
-		ierr = MPI_Barrier(MPI_COMM_WORLD);
-		if(myrank == 0){
-			if(i < 5){
-				wprintf(L"Geracao %d = %d\n", i, receive_alive_count);
-				print_grid(arg.grid_ptr);
+			
+			ierr = MPI_Sendrecv(&sendArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1)%nProc), 10, &receiveArrayPreviousProc, GRID_SIZE, MPI_INTEGER, ((myrank - 1)%nProc), 10, MPI_COMM_WORLD, status);
+			ierr = MPI_Sendrecv(&sendArrayPreviousProc, GRID_SIZE, MPI_INTEGER, ((myrank - 1+nProc)%nProc), 20, &receiveArrayNextProc, GRID_SIZE, MPI_INTEGER, ((myrank + 1+nProc)%nProc), 20, MPI_COMM_WORLD,status);
+			ierr = MPI_Barrier(MPI_COMM_WORLD);
+			if(myrank == 0){
+				if(i < 5){
+					wprintf(L"Geracao %d = %d\n", i, receive_alive_count);
+					print_grid(arg.grid_ptr);
+				}
 			}
-		}
-      		ierr = MPI_Barrier(MPI_COMM_WORLD);
+      			ierr = MPI_Barrier(MPI_COMM_WORLD);
     }
 	return receive_alive_count;
 }
